@@ -131,6 +131,24 @@ namespace PartnerRelationManager.Services
                 );
             ");
 
+            // KPI Compliance Table
+            connection.Execute(@"
+                CREATE TABLE IF NOT EXISTS KPI_Compliance (
+                    PartnerId INTEGER NOT NULL,
+                    Period INTEGER NOT NULL,
+                    CertificationsNeeded TEXT,
+                    RequiredCertifications INTEGER,
+                    CertificationsCovered REAL,
+                    CertsExpiring3Months INTEGER,
+                    CertsExpiring6Months INTEGER,
+                    CertsExpiring12Months INTEGER,
+                    ProgramComplianceStatus TEXT,
+                    TierRisk TEXT,
+                    Comments TEXT,
+                    PRIMARY KEY (PartnerId, Period)
+                );
+            ");
+
             // 7. AppSettings Table
             connection.Execute(@"
                 CREATE TABLE IF NOT EXISTS AppSettings (
@@ -196,6 +214,7 @@ namespace PartnerRelationManager.Services
                 connection.Execute("DROP TABLE IF EXISTS Documents;", transaction: transaction);
                 connection.Execute("DROP TABLE IF EXISTS KPI_Commercial;", transaction: transaction);
                 connection.Execute("DROP TABLE IF EXISTS KPI_ProgramControl;", transaction: transaction);
+                connection.Execute("DROP TABLE IF EXISTS KPI_Compliance;", transaction: transaction);
                 connection.Execute("DROP TABLE IF EXISTS AppSettings;", transaction: transaction);
                 transaction.Commit();
             }

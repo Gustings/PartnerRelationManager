@@ -70,23 +70,30 @@ namespace PartnerRelationManager
                             new { Name = dbPartnerName, CountryCode = c.Code }, 
                             transaction: transaction);
 
-                        // Initialize empty KPI rows for 2025, 2026, 2027
-                        foreach (int period in new[] { 2025, 2026, 2027 })
-                        {
-                            connection.Execute(@"
-                                INSERT INTO KPI_Commercial (PartnerId, Period, TargetMet, Comments)
-                                VALUES (@PartnerId, @Period, 'No', '')
-                                ON CONFLICT(PartnerId, Period) DO NOTHING;",
-                                new { PartnerId = partnerId, Period = period }, 
-                                transaction: transaction);
+                            // Initialize empty KPI rows for 2025, 2026, 2027
+                            foreach (int period in new[] { 2025, 2026, 2027 })
+                            {
+                                connection.Execute(@"
+                                    INSERT INTO KPI_Commercial (PartnerId, Period, TargetMet, Comments)
+                                    VALUES (@PartnerId, @Period, 'No', '')
+                                    ON CONFLICT(PartnerId, Period) DO NOTHING;",
+                                    new { PartnerId = partnerId, Period = period }, 
+                                    transaction: transaction);
 
-                            connection.Execute(@"
-                                INSERT INTO KPI_ProgramControl (PartnerId, Period, RebateEligibility, RiskOfDowngrade, Comments)
-                                VALUES (@PartnerId, @Period, 'No', 'No', '')
-                                ON CONFLICT(PartnerId, Period) DO NOTHING;",
-                                new { PartnerId = partnerId, Period = period }, 
-                                transaction: transaction);
-                        }
+                                connection.Execute(@"
+                                    INSERT INTO KPI_ProgramControl (PartnerId, Period, RebateEligibility, RiskOfDowngrade, Comments)
+                                    VALUES (@PartnerId, @Period, 'No', 'No', '')
+                                    ON CONFLICT(PartnerId, Period) DO NOTHING;",
+                                    new { PartnerId = partnerId, Period = period }, 
+                                    transaction: transaction);
+
+                                connection.Execute(@"
+                                    INSERT INTO KPI_Compliance (PartnerId, Period, CertificationsNeeded, RequiredCertifications, CertificationsCovered, CertsExpiring3Months, CertsExpiring6Months, CertsExpiring12Months, ProgramComplianceStatus, TierRisk, Comments)
+                                    VALUES (@PartnerId, @Period, 'No', 0, 0.0, 0, 0, 0, 'OK', 'No', '')
+                                    ON CONFLICT(PartnerId, Period) DO NOTHING;",
+                                    new { PartnerId = partnerId, Period = period }, 
+                                    transaction: transaction);
+                            }
                     }
 
                     transaction.Commit();

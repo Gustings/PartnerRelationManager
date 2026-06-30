@@ -81,4 +81,19 @@ namespace PartnerRelationManager.Models
         public string RiskOfDowngrade { get; set; } = string.Empty;
         public string Comments { get; set; } = string.Empty;
     }
+
+    public class KPI_Compliance
+    {
+        public int PartnerId { get; set; }
+        public int Period { get; set; }
+        public string CertificationsNeeded { get; set; } = string.Empty;
+        public int? RequiredCertifications { get; set; }
+        public double? CertificationsCovered { get; set; }
+        public int? CertsExpiring3Months { get; set; }
+        public int? CertsExpiring6Months { get; set; }
+        public int? CertsExpiring12Months { get; set; }
+        public string ProgramComplianceStatus { get; set; } = string.Empty;
+        public string TierRisk { get; set; } = string.Empty;
+        public string Comments { get; set; } = string.Empty;
+    }
 }

@@ -298,6 +298,60 @@ namespace PartnerRelationManager.Services
                 }
             }
 
+            // Import KPI Compliance
+            if (workbook.TryGetWorksheet("KPI_Compliance", out var complianceSheet) || workbook.TryGetWorksheet("KPI Compliance", out complianceSheet))
+            {
+                var headers = GetHeaders(complianceSheet);
+                var rows = complianceSheet.RowsUsed().Skip(1);
+
+                foreach (var row in rows)
+                {
+                    string partnerName = GetString(row, headers, "Partner Name");
+                    if (string.IsNullOrWhiteSpace(partnerName)) continue;
+
+                    string countryCode = GetString(row, headers, "Country");
+                    string countryName = GetCountryName(countryCode);
+                    string targetPartnerName = $"{partnerName} {countryName}";
+
+                    var partner = connection.QueryFirstOrDefault<Partner>(
+                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = targetPartnerName });
+                    if (partner == null) continue;
+
+                    int period = GetInt(row, headers, "Period") ?? 2025;
+                    string certsNeeded = GetString(row, headers, "Certifications Needed (Yes/No)");
+                    int? reqCerts = GetInt(row, headers, "Required Certifications (Count)");
+                    double? certsCovered = GetDouble(row, headers, "Certifications Covered (%)");
+                    int? certs3m = GetInt(row, headers, "Certs Expiring < 3 Months (Count)");
+                    int? certs6m = GetInt(row, headers, "Certs Expiring < 6 Months (Count)");
+                    int? certs12m = GetInt(row, headers, "Certs Expiring < 12 Months (Count)");
+                    string status = GetString(row, headers, "Program Compliance Status (OK/Deviation)");
+                    string tierRisk = GetString(row, headers, "Tier Risk (Yes/No)");
+                    string comments = GetString(row, headers, "Comments");
+
+                    connection.Execute(@"
+                        INSERT INTO KPI_Compliance (PartnerId, Period, CertificationsNeeded, RequiredCertifications, CertificationsCovered, CertsExpiring3Months, CertsExpiring6Months, CertsExpiring12Months, ProgramComplianceStatus, TierRisk, Comments)
+                        VALUES (@PartnerId, @Period, @CertificationsNeeded, @RequiredCertifications, @CertificationsCovered, @CertsExpiring3Months, @CertsExpiring6Months, @CertsExpiring12Months, @ProgramComplianceStatus, @TierRisk, @Comments)
+                        ON CONFLICT(PartnerId, Period) DO UPDATE SET
+                            CertificationsNeeded=@CertificationsNeeded, RequiredCertifications=@RequiredCertifications, CertificationsCovered=@CertificationsCovered,
+                            CertsExpiring3Months=@CertsExpiring3Months, CertsExpiring6Months=@CertsExpiring6Months, CertsExpiring12Months=@CertsExpiring12Months,
+                            ProgramComplianceStatus=@ProgramComplianceStatus, TierRisk=@TierRisk, Comments=@Comments;",
+                        new
+                        {
+                            PartnerId = partner.Id,
+                            Period = period,
+                            CertificationsNeeded = certsNeeded,
+                            RequiredCertifications = reqCerts,
+                            CertificationsCovered = certsCovered,
+                            CertsExpiring3Months = certs3m,
+                            CertsExpiring6Months = certs6m,
+                            CertsExpiring12Months = certs12m,
+                            ProgramComplianceStatus = status,
+                            TierRisk = tierRisk,
+                            Comments = comments
+                        });
+                }
+            }
+
             // 9. Import QBR Log to Activities (replicating across all partner country instances)
             if (workbook.TryGetWorksheet("QBR_Log", out var qbrSheet))
             {
@@ -360,11 +414,12 @@ namespace PartnerRelationManager.Services
             using var connection = DatabaseHelper.GetConnection();
             connection.Open();
 
-            // Export 6 tables
+            // Export 7 tables
             WriteTable(workbook.Worksheets.Add("Partners"), connection.Query<Partner>("SELECT * FROM Partners").ToList());
             WriteTable(workbook.Worksheets.Add("Contacts"), connection.Query<Contact>("SELECT * FROM Contacts").ToList());
             WriteTable(workbook.Worksheets.Add("KPI Commercial"), connection.Query<KPI_Commercial>("SELECT * FROM KPI_Commercial").ToList());
             WriteTable(workbook.Worksheets.Add("KPI Program Control"), connection.Query<KPI_ProgramControl>("SELECT * FROM KPI_ProgramControl").ToList());
+            WriteTable(workbook.Worksheets.Add("KPI Compliance"), connection.Query<KPI_Compliance>("SELECT * FROM KPI_Compliance").ToList());
             WriteTable(workbook.Worksheets.Add("Activities"), connection.Query<Activity>("SELECT * FROM Activities").ToList());
             WriteTable(workbook.Worksheets.Add("Documents"), connection.Query<Document>("SELECT * FROM Documents").ToList());
 
@@ -449,7 +504,7 @@ namespace PartnerRelationManager.Services
             return raw.Replace("\r", "").Replace("\n", " ").Replace("  ", " ").Trim();
         }
 
-        private static IXLCell GetCell(IXLRow row, Dictionary<string, int> headers, string key)
+        private static IXLCell? GetCell(IXLRow row, Dictionary<string, int> headers, string key)
         {
             if (headers.TryGetValue(key, out int colIdx))
             {

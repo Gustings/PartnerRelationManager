@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="Add New Partner"
-        Height="320" Width="420"
+        Height="360" Width="420"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="{ui:ThemeResource ApplicationBackgroundBrush}">
@@ -28,12 +28,12 @@
             <ui:TextBox x:Name="TxtOemName" PlaceholderText="e.g. HP, Lenovo, Dell, Cisco" Margin="0,0,0,16"/>
 
             <TextBlock Style="{DynamicResource BodyTextBlockStyle}" Text="Target Countries:" Margin="0,0,0,6"/>
-            <WrapPanel Margin="0,0,0,16">
+            <UniformGrid Columns="2" Rows="2" Margin="0,0,0,16">
                 <CheckBox x:Name="ChkNo" Content="Norway (NO)" IsChecked="True" Margin="0,0,16,8"/>
                 <CheckBox x:Name="ChkSe" Content="Sweden (SE)" IsChecked="True" Margin="0,0,16,8"/>
                 <CheckBox x:Name="ChkDk" Content="Denmark (DK)" IsChecked="True" Margin="0,0,16,8"/>
                 <CheckBox x:Name="ChkFi" Content="Finland (FI)" IsChecked="True" Margin="0,0,16,8"/>
-            </WrapPanel>
+            </UniformGrid>
         </StackPanel>
 
         <!-- Actions -->

@@ -145,8 +145,60 @@ namespace PartnerRelationManager
                     }
                 }
 
+                // 2b. Query KPI_Compliance and generate warnings & pop LstCertifications
+                var complianceList = connection.Query(@"
+                    SELECT p.Name as PartnerName, p.CountryCode, k.Period, k.CertificationsNeeded, k.RequiredCertifications, k.CertificationsCovered, k.CertsExpiring3Months, k.CertsExpiring6Months, k.CertsExpiring12Months, k.ProgramComplianceStatus, k.TierRisk
+                    FROM KPI_Compliance k
+                    JOIN Partners p ON k.PartnerId = p.Id"
+                ).ToList();
+
+                var certViewModels = new List<CertificationDashboardViewModel>();
+
+                foreach (var item in complianceList)
+                {
+                    double coveredPercent = item.CertificationsCovered ?? 0.0;
+                    if (coveredPercent <= 1.0) coveredPercent *= 100.0;
+
+                    bool isRed = (item.CertsExpiring3Months > 0) || (item.ProgramComplianceStatus == "Deviation");
+                    bool isAmber = !isRed && ((item.CertsExpiring6Months > 0) || (coveredPercent < 100.0));
+
+                    if (isRed)
+                    {
+                        warnings.Add(new DashboardWarning
+                        {
+                            DisplayTitle = $"Compliance Deviation - {item.PartnerName} ({item.CountryCode})",
+                            DisplayDetails = $"Deviation detected. Expiring < 3M: {item.CertsExpiring3Months}. Status: {item.ProgramComplianceStatus}.",
+                            SeverityColor = "#FFE81123" // Red
+                        });
+                    }
+                    else if (isAmber)
+                    {
+                        string details = $"Covered: {coveredPercent:F1}%. Expiring < 6M: {item.CertsExpiring6Months}.";
+                        warnings.Add(new DashboardWarning
+                        {
+                            DisplayTitle = $"Compliance Warning - {item.PartnerName} ({item.CountryCode})",
+                            DisplayDetails = details,
+                            SeverityColor = "#FFF59B23" // Amber
+                        });
+                    }
+
+                    string colorHex = "#FF26BC74"; // Green
+                    if (isRed) colorHex = "#FFE81123";
+                    else if (isAmber) colorHex = "#FFF59B23";
+
+                    string detailsText = $"Covered: {coveredPercent:F0}% of {item.RequiredCertifications} req. (Expiring 3M: {item.CertsExpiring3Months}, 6M: {item.CertsExpiring6Months})";
+                    certViewModels.Add(new CertificationDashboardViewModel
+                    {
+                        PartnerName = $"{item.PartnerName} ({item.CountryCode})",
+                        Details = detailsText,
+                        Period = item.Period.ToString(),
+                        StatusColor = colorHex
+                    });
+                }
+
                 TxtComplianceWarnings.Text = warnings.Count.ToString();
                 LstWarnings.ItemsSource = warnings;
+                LstCertifications.ItemsSource = certViewModels;
 
                 // 3. Load Activities
                 string localCountry = DatabaseHelper.GetSetting("LocalCountry", "NO");
@@ -188,6 +240,14 @@ namespace PartnerRelationManager
             public string DisplayTitle { get; set; } = string.Empty;
             public string DisplayDetails { get; set; } = string.Empty;
             public string SeverityColor { get; set; } = "#FFE81123";
+        }
+
+        public class CertificationDashboardViewModel
+        {
+            public string PartnerName { get; set; } = string.Empty;
+            public string Details { get; set; } = string.Empty;
+            public string Period { get; set; } = string.Empty;
+            public string StatusColor { get; set; } = "#FF888888";
         }
 
         public class ActivityDashboardViewModel

@@ -338,6 +338,87 @@
                         </Grid>
                     </TabItem>
 
+                    <!-- COMPLIANCE TAB -->
+                    <TabItem Header="Compliance">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ui:Card Margin="12" Padding="16">
+                                <StackPanel>
+                                    <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Compliance KPI Details" Margin="0,0,0,12"/>
+                                    
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Certifications Needed -->
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certifications Needed (Yes/No):"/>
+                                            <ui:TextBox x:Name="TxtCompCertsNeeded"/>
+                                        </StackPanel>
+
+                                        <!-- Required Certifications -->
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Required Certifications (Count):"/>
+                                            <ui:TextBox x:Name="TxtCompRequiredCerts"/>
+                                        </StackPanel>
+
+                                        <!-- Certifications Covered -->
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certifications Covered (%):"/>
+                                            <ui:TextBox x:Name="TxtCompCertsCovered"/>
+                                        </StackPanel>
+
+                                        <!-- Program Compliance Status -->
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Program Compliance Status (OK/Deviation):"/>
+                                            <ui:TextBox x:Name="TxtCompStatus"/>
+                                        </StackPanel>
+
+                                        <!-- Certs Expiring < 3 Months -->
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certs Expiring &lt; 3 Months (Count):"/>
+                                            <ui:TextBox x:Name="TxtCompExp3m"/>
+                                        </StackPanel>
+
+                                        <!-- Certs Expiring < 6 Months -->
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,0,0,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certs Expiring &lt; 6 Months (Count):"/>
+                                            <ui:TextBox x:Name="TxtCompExp6m"/>
+                                        </StackPanel>
+
+                                        <!-- Certs Expiring < 12 Months -->
+                                        <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,8,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certs Expiring &lt; 12 Months (Count):"/>
+                                            <ui:TextBox x:Name="TxtCompExp12m"/>
+                                        </StackPanel>
+
+                                        <!-- Tier Risk -->
+                                        <StackPanel Grid.Row="3" Grid.Column="1" Margin="8,0,0,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Tier Risk (Yes/No):"/>
+                                            <ui:TextBox x:Name="TxtCompTierRisk"/>
+                                        </StackPanel>
+
+                                        <!-- Comments -->
+                                        <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Compliance Comments:"/>
+                                            <ui:TextBox x:Name="TxtCompComments" AcceptsReturn="True" MinLines="3"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <ui:Button Content="Save Compliance KPIs" Appearance="Primary" Click="BtnSaveCompliance_Click" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </ui:Card>
+                        </ScrollViewer>
+                    </TabItem>
+
                     <!-- DOCUMENTS TAB -->
                     <TabItem Header="Documents">
                         <Grid Margin="12">

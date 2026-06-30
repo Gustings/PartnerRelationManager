@@ -185,6 +185,36 @@ namespace PartnerRelationManager
                     "SELECT * FROM Documents WHERE PartnerId = @PartnerId AND Period = @Period",
                     new { PartnerId = partner.Id, Period = period }).ToList();
                 LstDocuments.ItemsSource = docs;
+
+                // 4. Compliance KPIs
+                var comp = connection.QueryFirstOrDefault<KPI_Compliance>(
+                    "SELECT * FROM KPI_Compliance WHERE PartnerId = @PartnerId AND Period = @Period",
+                    new { PartnerId = partner.Id, Period = period });
+
+                if (comp != null)
+                {
+                    TxtCompCertsNeeded.Text = comp.CertificationsNeeded;
+                    TxtCompRequiredCerts.Text = comp.RequiredCertifications?.ToString() ?? "0";
+                    TxtCompCertsCovered.Text = (comp.CertificationsCovered * 100.0)?.ToString("F1") ?? "0.0";
+                    TxtCompExp3m.Text = comp.CertsExpiring3Months?.ToString() ?? "0";
+                    TxtCompExp6m.Text = comp.CertsExpiring6Months?.ToString() ?? "0";
+                    TxtCompExp12m.Text = comp.CertsExpiring12Months?.ToString() ?? "0";
+                    TxtCompStatus.Text = comp.ProgramComplianceStatus;
+                    TxtCompTierRisk.Text = comp.TierRisk;
+                    TxtCompComments.Text = comp.Comments;
+                }
+                else
+                {
+                    TxtCompCertsNeeded.Text = "No";
+                    TxtCompRequiredCerts.Text = "0";
+                    TxtCompCertsCovered.Text = "0.0";
+                    TxtCompExp3m.Text = "0";
+                    TxtCompExp6m.Text = "0";
+                    TxtCompExp12m.Text = "0";
+                    TxtCompStatus.Text = "OK";
+                    TxtCompTierRisk.Text = "No";
+                    TxtCompComments.Text = string.Empty;
+                }
             }
             catch (Exception ex)
             {
@@ -263,6 +293,73 @@ namespace PartnerRelationManager
             catch (Exception ex)
             {
                 MessageBox.Show($"Error updating profile: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnSaveCompliance_Click(object sender, RoutedEventArgs e)
+        {
+            var partner = GetSelectedPartner();
+            if (partner == null) return;
+            int period = GetSelectedPeriod();
+
+            try
+            {
+                using var connection = DatabaseHelper.GetConnection();
+                connection.Open();
+
+                string certsNeeded = TxtCompCertsNeeded.Text.Trim();
+                int reqCerts = int.TryParse(TxtCompRequiredCerts.Text, out int req) ? req : 0;
+                
+                double certsCovered = 0.0;
+                if (double.TryParse(TxtCompCertsCovered.Text.Replace("%", "").Trim(), out double cov))
+                {
+                    certsCovered = cov / 100.0;
+                }
+                
+                int exp3m = int.TryParse(TxtCompExp3m.Text, out int e3) ? e3 : 0;
+                int exp6m = int.TryParse(TxtCompExp6m.Text, out int e6) ? e6 : 0;
+                int exp12m = int.TryParse(TxtCompExp12m.Text, out int e12) ? e12 : 0;
+                string status = TxtCompStatus.Text.Trim();
+                string tierRisk = TxtCompTierRisk.Text.Trim();
+                string comments = TxtCompComments.Text.Trim();
+
+                connection.Execute(@"
+                    INSERT INTO KPI_Compliance (PartnerId, Period, CertificationsNeeded, RequiredCertifications, CertificationsCovered, CertsExpiring3Months, CertsExpiring6Months, CertsExpiring12Months, ProgramComplianceStatus, TierRisk, Comments)
+                    VALUES (@PartnerId, @Period, @CertificationsNeeded, @RequiredCertifications, @CertificationsCovered, @CertsExpiring3Months, @CertsExpiring6Months, @CertsExpiring12Months, @ProgramComplianceStatus, @TierRisk, @Comments)
+                    ON CONFLICT(PartnerId, Period) DO UPDATE SET
+                        CertificationsNeeded = @CertificationsNeeded,
+                        RequiredCertifications = @RequiredCertifications,
+                        CertificationsCovered = @CertificationsCovered,
+                        CertsExpiring3Months = @CertsExpiring3Months,
+                        CertsExpiring6Months = @CertsExpiring6Months,
+                        CertsExpiring12Months = @CertsExpiring12Months,
+                        ProgramComplianceStatus = @ProgramComplianceStatus,
+                        TierRisk = @TierRisk,
+                        Comments = @Comments;",
+                    new
+                    {
+                        PartnerId = partner.Id,
+                        Period = period,
+                        CertificationsNeeded = certsNeeded,
+                        RequiredCertifications = reqCerts,
+                        CertificationsCovered = certsCovered,
+                        CertsExpiring3Months = exp3m,
+                        CertsExpiring6Months = exp6m,
+                        CertsExpiring12Months = exp12m,
+                        ProgramComplianceStatus = status,
+                        TierRisk = tierRisk,
+                        Comments = comments
+                    });
+
+                MessageBox.Show("Compliance KPIs saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Refresh dashboard/main UI
+                var mainWin = Window.GetWindow(this) as MainWindow;
+                mainWin?.RefreshAll();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving compliance KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -424,6 +521,9 @@ namespace PartnerRelationManager
 
                         // Delete from KPI_Commercial
                         connection.Execute("DELETE FROM KPI_Commercial WHERE PartnerId IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
+
+                        // Delete from KPI_Compliance
+                        connection.Execute("DELETE FROM KPI_Compliance WHERE PartnerId IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
 
                         // Delete from Documents
                         connection.Execute("DELETE FROM Documents WHERE PartnerId IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
