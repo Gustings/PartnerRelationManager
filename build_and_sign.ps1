@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 
 # 1. Locate or Create Code Signing Certificate
 Write-Host "=== 1. Checking Code Signing Certificate ==="
-$certSubject = "CN=Partner Relation Manager Local Testing"
+$certSubject = "CN=Work Tracker Local Testing"
 $cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "*$certSubject*" } | Select-Object -First 1
 
 if ($null -eq $cert) {
