@@ -193,7 +193,8 @@ namespace PartnerRelationManager
 
                 if (comp != null)
                 {
-                    TxtCompCertsNeeded.Text = comp.CertificationsNeeded;
+                    string certsNeeded = comp.CertificationsNeeded ?? "No";
+                    CboCompCertsNeeded.SelectedIndex = certsNeeded.Trim().Equals("Yes", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
                     TxtCompRequiredCerts.Text = comp.RequiredCertifications?.ToString() ?? "0";
                     TxtCompCertsCovered.Text = (comp.CertificationsCovered * 100.0)?.ToString("F1") ?? "0.0";
                     TxtCompExp3m.Text = comp.CertsExpiring3Months?.ToString() ?? "0";
@@ -205,7 +206,7 @@ namespace PartnerRelationManager
                 }
                 else
                 {
-                    TxtCompCertsNeeded.Text = "No";
+                    CboCompCertsNeeded.SelectedIndex = 1; // "No"
                     TxtCompRequiredCerts.Text = "0";
                     TxtCompCertsCovered.Text = "0.0";
                     TxtCompExp3m.Text = "0";
@@ -215,6 +216,8 @@ namespace PartnerRelationManager
                     TxtCompTierRisk.Text = "No";
                     TxtCompComments.Text = string.Empty;
                 }
+
+                UpdateCertificationFieldsEnabledState();
             }
             catch (Exception ex)
             {
@@ -307,7 +310,11 @@ namespace PartnerRelationManager
                 using var connection = DatabaseHelper.GetConnection();
                 connection.Open();
 
-                string certsNeeded = TxtCompCertsNeeded.Text.Trim();
+                string certsNeeded = "No";
+                if (CboCompCertsNeeded.SelectedItem is ComboBoxItem item)
+                {
+                    certsNeeded = item.Content?.ToString() ?? "No";
+                }
                 int reqCerts = int.TryParse(TxtCompRequiredCerts.Text, out int req) ? req : 0;
                 
                 double certsCovered = 0.0;
@@ -361,6 +368,29 @@ namespace PartnerRelationManager
             {
                 MessageBox.Show($"Error saving compliance KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void CboCompCertsNeeded_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateCertificationFieldsEnabledState();
+        }
+
+        private void UpdateCertificationFieldsEnabledState()
+        {
+            if (CboCompCertsNeeded == null) return;
+            
+            var selectedItem = CboCompCertsNeeded.SelectedItem as ComboBoxItem;
+            string value = selectedItem?.Content?.ToString() ?? "No";
+            bool certsNeeded = string.Equals(value, "Yes", StringComparison.OrdinalIgnoreCase);
+
+            if (TxtCompRequiredCerts != null) TxtCompRequiredCerts.IsEnabled = certsNeeded;
+            if (TxtCompCertsCovered != null) TxtCompCertsCovered.IsEnabled = certsNeeded;
+            if (TxtCompStatus != null) TxtCompStatus.IsEnabled = certsNeeded;
+            if (TxtCompExp3m != null) TxtCompExp3m.IsEnabled = certsNeeded;
+            if (TxtCompExp6m != null) TxtCompExp6m.IsEnabled = certsNeeded;
+            if (TxtCompExp12m != null) TxtCompExp12m.IsEnabled = certsNeeded;
+            if (TxtCompTierRisk != null) TxtCompTierRisk.IsEnabled = certsNeeded;
+            if (TxtCompComments != null) TxtCompComments.IsEnabled = certsNeeded;
         }
 
         // ==========================================

@@ -156,6 +156,12 @@ namespace PartnerRelationManager
 
                 foreach (var item in complianceList)
                 {
+                    string certsNeeded = item.CertificationsNeeded;
+                    if (string.IsNullOrWhiteSpace(certsNeeded) || certsNeeded.Trim().Equals("No", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     double coveredPercent = item.CertificationsCovered ?? 0.0;
                     if (coveredPercent <= 1.0) coveredPercent *= 100.0;
 
