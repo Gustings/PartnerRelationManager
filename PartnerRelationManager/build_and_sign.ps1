@@ -100,7 +100,7 @@ if ($null -eq $iscc) {
     }
 }
 
-$setupExePath = "PartnerRelationManagerSetup-$productVersion.exe"
+$setupExePath = "..\Installers\PartnerRelationManagerSetup-$productVersion.exe"
 
 if ($null -ne $iscc -and (Test-Path $iscc)) {
     Write-Host "Using Inno Setup Compiler at: $iscc"

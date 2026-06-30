@@ -16,6 +16,7 @@ obj/
 *.lnk
 
 # Installers
+Installers/
 PartnerRelationManagerSetup-*.exe
 
 # Private Assets

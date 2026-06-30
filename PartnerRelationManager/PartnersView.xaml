@@ -142,9 +142,14 @@
                                                 <ui:TextBox x:Name="TxtEditStatus"/>
                                             </StackPanel>
                                             <!-- Business Areas -->
-                                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,8" >
+                                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" >
                                                 <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Business Areas / Primary Sales Model:"/>
                                                 <ui:TextBox x:Name="TxtEditBusinessAreas"/>
+                                            </StackPanel>
+                                            <!-- Current Tier -->
+                                            <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,0,0,8" >
+                                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Current Partner Tier:"/>
+                                                <ComboBox x:Name="CboPartnerTier" DisplayMemberPath="Name" SelectedValuePath="Id" HorizontalAlignment="Stretch"/>
                                             </StackPanel>
                                         </Grid>
 

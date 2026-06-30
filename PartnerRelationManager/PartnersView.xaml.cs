@@ -18,6 +18,7 @@ namespace PartnerRelationManager
     {
         private List<Partner> allPartners = new List<Partner>();
         private List<Country> allCountries = new List<Country>();
+        private List<Tier> allTiers = new List<Tier>();
 
         public PartnersView()
         {
@@ -33,8 +34,24 @@ namespace PartnerRelationManager
         public void RefreshAll()
         {
             LoadCountries();
+            LoadTiers();
             LoadPartners();
             RefreshDataForSelectedPartner();
+        }
+
+        private void LoadTiers()
+        {
+            try
+            {
+                using var connection = DatabaseHelper.GetConnection();
+                connection.Open();
+                allTiers = connection.Query<Tier>("SELECT * FROM Tiers ORDER BY Id;").ToList();
+                CboPartnerTier.ItemsSource = allTiers;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading tiers: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void LoadCountries()
@@ -171,7 +188,26 @@ namespace PartnerRelationManager
                     new { PartnerId = partner.Id, CountryId = country.Id, Period = period }).ToList();
                 LstDocuments.ItemsSource = docs;
 
-                // 5. KPIs loading
+                // 5. Load Partner Tier
+                var partnerTier = connection.QueryFirstOrDefault<PartnerTier>(@"
+                    SELECT pt.*, t.Name AS TierName
+                    FROM PartnerTiers pt
+                    JOIN Tiers t ON pt.TierId = t.Id
+                    WHERE pt.PartnerId = @PartnerId AND pt.CountryId = @CountryId AND pt.Period = @Period",
+                    new { PartnerId = partner.Id, CountryId = country.Id, Period = period });
+
+                if (partnerTier != null)
+                {
+                    CboPartnerTier.SelectedValue = partnerTier.TierId;
+                }
+                else
+                {
+                    var noneTier = allTiers.FirstOrDefault(t => t.Name.Equals("None", StringComparison.OrdinalIgnoreCase));
+                    if (noneTier != null) CboPartnerTier.SelectedValue = noneTier.Id;
+                    else CboPartnerTier.SelectedIndex = -1;
+                }
+
+                // 6. KPIs loading
                 LoadCommercialKpis(connection, partner.Id, country.Id, period);
                 LoadComplianceKpis(connection, partner.Id, country.Id, period);
                 LoadProgramControlKpis(connection, partner.Id, country.Id, period);
@@ -222,6 +258,18 @@ namespace PartnerRelationManager
                         BusinessAreas = TxtEditBusinessAreas.Text,
                         Id = partner.Id
                     });
+
+                var country = CboCountry.SelectedItem as Country;
+                int period = GetSelectedPeriod();
+                if (country != null && CboPartnerTier.SelectedValue != null)
+                {
+                    int tierId = (int)CboPartnerTier.SelectedValue;
+                    connection.Execute(@"
+                        INSERT INTO PartnerTiers (PartnerId, CountryId, Period, TierId)
+                        VALUES (@PartnerId, @CountryId, @Period, @TierId)
+                        ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET TierId = @TierId;",
+                        new { PartnerId = partner.Id, CountryId = country.Id, Period = period, TierId = tierId });
+                }
 
                 MessageBox.Show("Profile updated successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 
