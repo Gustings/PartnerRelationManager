@@ -79,7 +79,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" >
                             <StackPanel >
                                 <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Country" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
-                                <ComboBox x:Name="CboCountry" Width="100" DisplayMemberPath="Code" SelectionChanged="CboFilter_SelectionChanged"/>
+                                <ComboBox x:Name="CboCountry" Width="100" DisplayMemberPath="Code" SelectedValuePath="Id" SelectionChanged="CboFilter_SelectionChanged"/>
                             </StackPanel>
                             
                             <StackPanel >
