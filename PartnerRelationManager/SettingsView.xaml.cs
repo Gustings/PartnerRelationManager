@@ -29,7 +29,6 @@ namespace PartnerRelationManager
                     ExcelService.ImportTrackerData(openFileDialog.FileName);
                     MessageBox.Show("Excel tracker data imported successfully!", "Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
                     
-                    // Trigger a refresh of the application dashboard and partner lists
                     var mainWindow = Window.GetWindow(this) as MainWindow;
                     mainWindow?.RefreshAll();
                 }
@@ -61,94 +60,6 @@ namespace PartnerRelationManager
                 {
                     MessageBox.Show($"Error exporting SRM data: {ex.Message}", "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-            }
-        }
-
-        private void BtnAddCountry_Click(object sender, RoutedEventArgs e)
-        {
-            string name = TxtCountryName.Text.Trim();
-            string code = TxtCountryCode.Text.Trim().ToUpper();
-
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(code))
-            {
-                MessageBox.Show("Please fill out both Name and Code.", "Validation Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-
-                var existing = connection.QueryFirstOrDefault(
-                    "SELECT * FROM Countries WHERE Code = @Code OR Name = @Name",
-                    new { Code = code, Name = name }
-                );
-
-                if (existing != null)
-                {
-                    MessageBox.Show($"A country with the name '{name}' or code '{code}' already exists.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                connection.Execute(
-                    "INSERT INTO Countries (Name, Code) VALUES (@Name, @Code);",
-                    new { Name = name, Code = code }
-                );
-
-                MessageBox.Show($"Country '{name}' ({code}) added successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                TxtCountryName.Clear();
-                TxtCountryCode.Clear();
-
-                var mainWindow = Window.GetWindow(this) as MainWindow;
-                mainWindow?.RefreshAll();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error adding country: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void BtnAddTier_Click(object sender, RoutedEventArgs e)
-        {
-            string name = TxtTierName.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                MessageBox.Show("Please specify a Tier Name.", "Validation Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-
-                var existing = connection.QueryFirstOrDefault(
-                    "SELECT * FROM Tiers WHERE Name = @Name",
-                    new { Name = name }
-                );
-
-                if (existing != null)
-                {
-                    MessageBox.Show($"A program tier with the name '{name}' already exists.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                connection.Execute(
-                    "INSERT INTO Tiers (Name) VALUES (@Name);",
-                    new { Name = name }
-                );
-
-                MessageBox.Show($"Tier '{name}' added successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                TxtTierName.Clear();
-
-                var mainWindow = Window.GetWindow(this) as MainWindow;
-                mainWindow?.RefreshAll();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error adding tier: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

@@ -30,7 +30,7 @@ namespace PartnerRelationManager
 
                 // 1. Get quick stats
                 int totalPartners = connection.ExecuteScalar<int>("SELECT COUNT(*) FROM Partners;");
-                int totalCountries = connection.ExecuteScalar<int>("SELECT COUNT(*) FROM Countries;");
+                int totalCountries = connection.ExecuteScalar<int>("SELECT COUNT(DISTINCT CountryCode) FROM Partners WHERE CountryCode IS NOT NULL AND CountryCode != '';");
                 int totalActivities = connection.ExecuteScalar<int>("SELECT COUNT(*) FROM Activities;");
 
                 TxtTotalPartners.Text = totalPartners.ToString();
@@ -40,48 +40,27 @@ namespace PartnerRelationManager
                 // 2. Generate Compliance Warnings
                 var warnings = new List<DashboardWarning>();
 
-                // Compliance sheet warnings
-                var complianceList = connection.Query(@"
-                    SELECT p.Name as PartnerName, c.Code as CountryCode, k.TierRisk, k.ProgramComplianceStatus, k.CertsExpiring3Months
-                    FROM KPI_Compliance k
-                    JOIN Partners p ON k.PartnerId = p.Id
-                    JOIN Countries c ON k.CountryId = c.Id"
-                ).ToList();
-
-                foreach (var item in complianceList)
+                // Partner status warnings
+                var partnerList = connection.Query("SELECT Name, Status, CountryCode FROM Partners;").ToList();
+                foreach (var p in partnerList)
                 {
-                    if (item.TierRisk == "Yes" || item.TierRisk == "True")
+                    string status = p.Status ?? string.Empty;
+                    if (status.Equals("Red", StringComparison.OrdinalIgnoreCase) || 
+                        status.Equals("Amber", StringComparison.OrdinalIgnoreCase))
                     {
                         warnings.Add(new DashboardWarning
                         {
-                            DisplayTitle = $"Tier Risk Alert - {item.PartnerName} ({item.CountryCode})",
-                            DisplayDetails = "Partner has a flag indicating risk of tier downgrade due to compliance issues."
-                        });
-                    }
-                    if (item.ProgramComplianceStatus == "Deviation")
-                    {
-                        warnings.Add(new DashboardWarning
-                        {
-                            DisplayTitle = $"Compliance Deviation - {item.PartnerName} ({item.CountryCode})",
-                            DisplayDetails = "Official program status is set to Deviation."
-                        });
-                    }
-                    if (item.CertsExpiring3Months > 0)
-                    {
-                        warnings.Add(new DashboardWarning
-                        {
-                            DisplayTitle = $"Expiring Certifications - {item.PartnerName} ({item.CountryCode})",
-                            DisplayDetails = $"{item.CertsExpiring3Months} certifications are expiring in less than 3 months."
+                            DisplayTitle = $"Status Alert - {p.Name} ({p.CountryCode})",
+                            DisplayDetails = $"Partner status is currently set to {status}."
                         });
                     }
                 }
 
                 // Program Control warnings
                 var programControlList = connection.Query(@"
-                    SELECT p.Name as PartnerName, c.Code as CountryCode, k.RiskOfDowngrade, k.Variance
+                    SELECT p.Name as PartnerName, p.CountryCode, k.RiskOfDowngrade, k.Variance
                     FROM KPI_ProgramControl k
-                    JOIN Partners p ON k.PartnerId = p.Id
-                    JOIN Countries c ON k.CountryId = c.Id"
+                    JOIN Partners p ON k.PartnerId = p.Id"
                 ).ToList();
 
                 foreach (var item in programControlList)

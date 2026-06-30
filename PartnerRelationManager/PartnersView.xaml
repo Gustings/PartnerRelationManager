@@ -28,7 +28,7 @@
                             TextChanged="TxtSearchPartner_TextChanged" Margin="0,0,0,12" Icon="Search24"/>
 
                 <ListBox Grid.Row="2" x:Name="LstPartners" SelectionChanged="LstPartners_SelectionChanged" 
-                         DisplayMemberPath="Name" BorderThickness="0" Background="Transparent"/>
+                          DisplayMemberPath="Name" BorderThickness="0" Background="Transparent"/>
 
                 <!-- Add Partner Action -->
                 <StackPanel Grid.Row="3" Margin="0,12,0,0" >
@@ -58,7 +58,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Details Header with Country & Year filters -->
+                <!-- Details Header with Year filter -->
                 <ui:Card Grid.Row="0" Margin="0,0,0,12" Padding="16">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -75,16 +75,11 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Filters -->
+                        <!-- Period Selector -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" >
                             <StackPanel >
-                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Country" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
-                                <ComboBox x:Name="CboCountry" Width="100" DisplayMemberPath="Code" SelectedValuePath="Id" SelectionChanged="CboFilter_SelectionChanged"/>
-                            </StackPanel>
-                            
-                            <StackPanel >
                                 <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Period / Year" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
-                                <ComboBox x:Name="CboPeriod" Width="90" SelectionChanged="CboFilter_SelectionChanged">
+                                <ComboBox x:Name="CboPeriod" Width="100" SelectionChanged="CboFilter_SelectionChanged">
                                     <ComboBoxItem Content="2025" IsSelected="True"/>
                                     <ComboBoxItem Content="2026"/>
                                     <ComboBoxItem Content="2027"/>
@@ -119,6 +114,9 @@
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
 
                                             <!-- Owner -->
@@ -146,10 +144,35 @@
                                                 <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Business Areas / Primary Sales Model:"/>
                                                 <ui:TextBox x:Name="TxtEditBusinessAreas"/>
                                             </StackPanel>
-                                            <!-- Current Tier -->
+                                            <!-- Country Code -->
                                             <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,0,0,8" >
-                                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Current Partner Tier:"/>
-                                                <ComboBox x:Name="CboPartnerTier" DisplayMemberPath="Name" SelectedValuePath="Id" HorizontalAlignment="Stretch"/>
+                                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Country Code (e.g. NO, SE, DK, FI):"/>
+                                                <ui:TextBox x:Name="TxtEditCountryCode"/>
+                                            </StackPanel>
+                                            <!-- Partner Program -->
+                                            <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,8,8" >
+                                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Partner Program:"/>
+                                                <ui:TextBox x:Name="TxtEditPartnerProgram"/>
+                                            </StackPanel>
+                                            <!-- Current Tier -->
+                                            <StackPanel Grid.Row="3" Grid.Column="1" Margin="8,0,0,8" >
+                                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Current Tier:"/>
+                                                <ui:TextBox x:Name="TxtEditCurrentTier"/>
+                                            </StackPanel>
+                                            <!-- Partner Identification -->
+                                            <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,0,8,8" >
+                                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Partner Identification:"/>
+                                                <ui:TextBox x:Name="TxtEditPartnerIdentification"/>
+                                            </StackPanel>
+                                            <!-- QBR Frequency -->
+                                            <StackPanel Grid.Row="4" Grid.Column="1" Margin="8,0,0,8" >
+                                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="QBR Frequency:"/>
+                                                <ui:TextBox x:Name="TxtEditQbrFrequency"/>
+                                            </StackPanel>
+                                            <!-- Comments -->
+                                            <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,8" >
+                                                <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Comments:"/>
+                                                <ui:TextBox x:Name="TxtEditComments" AcceptsReturn="True" MinLines="3"/>
                                             </StackPanel>
                                         </Grid>
 
@@ -157,67 +180,43 @@
                                     </StackPanel>
                                 </ui:Card>
 
-                                <!-- Contacts & Products -->
-                                <Grid Grid.Row="1">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Contacts -->
-                                    <ui:Card Grid.Column="0" Margin="0,0,6,0" Padding="12">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Contacts" Margin="0,0,0,8"/>
-                                            <ListView Grid.Row="1" x:Name="LstContacts" Height="150">
-                                                <ListView.View>
-                                                    <GridView>
-                                                        <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="100"/>
-                                                        <GridViewColumn Header="Role" DisplayMemberBinding="{Binding Role}" Width="100"/>
-                                                        <GridViewColumn Header="Email" DisplayMemberBinding="{Binding Email}" Width="120"/>
-                                                    </GridView>
-                                                </ListView.View>
-                                            </ListView>
-                                            <StackPanel Grid.Row="2" Margin="0,8,0,0" >
-                                                <ui:TextBox x:Name="TxtNewContactName" PlaceholderText="Contact Name"/>
-                                                <ui:TextBox x:Name="TxtNewContactRole" PlaceholderText="Role / Title"/>
-                                                <ui:TextBox x:Name="TxtNewContactEmail" PlaceholderText="Email"/>
-                                                <ui:Button Content="Add Contact" Click="BtnAddContact_Click" Appearance="Secondary" HorizontalAlignment="Stretch"/>
-                                            </StackPanel>
+                                <!-- Contacts -->
+                                <ui:Card Grid.Row="1" Padding="12">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Contacts" Margin="0,0,0,8"/>
+                                        <ListView Grid.Row="1" x:Name="LstContacts" Height="180">
+                                            <ListView.View>
+                                                <GridView>
+                                                    <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="120"/>
+                                                    <GridViewColumn Header="Role" DisplayMemberBinding="{Binding Role}" Width="120"/>
+                                                    <GridViewColumn Header="Email" DisplayMemberBinding="{Binding Email}" Width="150"/>
+                                                    <GridViewColumn Header="Phone" DisplayMemberBinding="{Binding Phone}" Width="100"/>
+                                                    <GridViewColumn Header="Notes" DisplayMemberBinding="{Binding Notes}" Width="200"/>
+                                                </GridView>
+                                            </ListView.View>
+                                        </ListView>
+                                        
+                                        <Grid Grid.Row="2" Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ui:TextBox Grid.Column="0" x:Name="TxtNewContactName" PlaceholderText="Name" Margin="0,0,4,0"/>
+                                            <ui:TextBox Grid.Column="1" x:Name="TxtNewContactRole" PlaceholderText="Role" Margin="4,0,4,0"/>
+                                            <ui:TextBox Grid.Column="2" x:Name="TxtNewContactEmail" PlaceholderText="Email" Margin="4,0,4,0"/>
+                                            <ui:TextBox Grid.Column="3" x:Name="TxtNewContactPhone" PlaceholderText="Phone" Margin="4,0,4,0"/>
+                                            <ui:Button Grid.Column="4" Content="Add" Click="BtnAddContact_Click" Appearance="Secondary" Margin="4,0,0,0" Width="80"/>
                                         </Grid>
-                                    </ui:Card>
-
-                                    <!-- Products / Services -->
-                                    <ui:Card Grid.Column="1" Margin="6,0,0,0" Padding="12">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Products &amp; Services" Margin="0,0,0,8"/>
-                                            <ListView Grid.Row="1" x:Name="LstProducts" Height="150">
-                                                <ListView.View>
-                                                    <GridView>
-                                                        <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="120"/>
-                                                        <GridViewColumn Header="Type" DisplayMemberBinding="{Binding Type}" Width="80"/>
-                                                        <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" Width="80"/>
-                                                    </GridView>
-                                                </ListView.View>
-                                            </ListView>
-                                            <StackPanel Grid.Row="2" Margin="0,8,0,0" >
-                                                <ui:TextBox x:Name="TxtNewProdName" PlaceholderText="Product/Service Name"/>
-                                                <ui:TextBox x:Name="TxtNewProdType" PlaceholderText="Type (e.g. Hardware, SaaS)"/>
-                                                <ui:TextBox x:Name="TxtNewProdStatus" PlaceholderText="Status (e.g. Active, EOL)"/>
-                                                <ui:Button Content="Add Product/Service" Click="BtnAddProduct_Click" Appearance="Secondary" HorizontalAlignment="Stretch"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </ui:Card>
-                                </Grid>
+                                    </Grid>
+                                </ui:Card>
                             </Grid>
                         </ScrollViewer>
                     </TabItem>
@@ -281,77 +280,6 @@
                                 </ScrollViewer>
                             </TabItem>
 
-                            <!-- COMPLIANCE KPI -->
-                            <TabItem Header="Compliance">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ui:Card Padding="16" Margin="12">
-                                        <StackPanel >
-                                            <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Program Compliance &amp; Certifications KPI" />
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certifications Needed:"/>
-                                                    <ComboBox x:Name="CboCertsNeeded" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="Yes"/>
-                                                        <ComboBoxItem Content="No"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Required Certifications (Count):"/>
-                                                    <ui:TextBox x:Name="TxtRequiredCerts"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certifications Covered (%):"/>
-                                                    <ui:TextBox x:Name="TxtCertsCovered"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certs Expiring &lt; 3 Months (Count):"/>
-                                                    <ui:TextBox x:Name="TxtCertsExp3"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certs Expiring &lt; 6 Months (Count):"/>
-                                                    <ui:TextBox x:Name="TxtCertsExp6"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Certs Expiring &lt; 12 Months (Count):"/>
-                                                    <ui:TextBox x:Name="TxtCertsExp12"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Program Compliance Status:"/>
-                                                    <ComboBox x:Name="CboComplianceStatus" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="OK"/>
-                                                        <ComboBoxItem Content="Deviation"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="3" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Tier Risk:"/>
-                                                    <ComboBox x:Name="CboTierRisk" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="Yes"/>
-                                                        <ComboBoxItem Content="No"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Comments:"/>
-                                                    <ui:TextBox x:Name="TxtComplianceComments"/>
-                                                </StackPanel>
-                                            </Grid>
-                                            <ui:Button Content="Save Compliance KPIs" Click="BtnSaveCompliance_Click" Appearance="Primary" HorizontalAlignment="Right"/>
-                                        </StackPanel>
-                                    </ui:Card>
-                                </ScrollViewer>
-                            </TabItem>
-
                             <!-- PROGRAM CONTROL KPI -->
                             <TabItem Header="Program Control">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -406,174 +334,6 @@
                                                 </StackPanel>
                                             </Grid>
                                             <ui:Button Content="Save Program Control KPIs" Click="BtnSaveProgramControl_Click" Appearance="Primary" HorizontalAlignment="Right"/>
-                                        </StackPanel>
-                                    </ui:Card>
-                                </ScrollViewer>
-                            </TabItem>
-
-                            <!-- ESG KPI -->
-                            <TabItem Header="Sustainability ESG">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ui:Card Padding="16" Margin="12">
-                                        <StackPanel >
-                                            <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Sustainability &amp; ESG KPI" />
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Take-back / Recycling Program:"/>
-                                                    <ComboBox x:Name="CboEsgTakeBack" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="Yes"/>
-                                                        <ComboBoxItem Content="No"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Refurbished / Second Life Support:"/>
-                                                    <ComboBox x:Name="CboEsgRefurb" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="Yes"/>
-                                                        <ComboBoxItem Content="No"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Environmental Data Available:"/>
-                                                    <ComboBox x:Name="CboEsgEnvData" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="Yes"/>
-                                                        <ComboBoxItem Content="No"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="ESG Compliance Status:"/>
-                                                    <ComboBox x:Name="CboEsgCompliance" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="OK"/>
-                                                        <ComboBoxItem Content="Deviation"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Logistics Emission Reduction Initiatives:"/>
-                                                    <ui:TextBox x:Name="TxtEsgLogistics"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Sustainability Qualification Met:"/>
-                                                    <ComboBox x:Name="CboEsgQualMet" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="Yes"/>
-                                                        <ComboBoxItem Content="No"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Comments:"/>
-                                                    <ui:TextBox x:Name="TxtEsgComments"/>
-                                                </StackPanel>
-                                            </Grid>
-                                            <ui:Button Content="Save Sustainability ESG KPIs" Click="BtnSaveEsg_Click" Appearance="Primary" HorizontalAlignment="Right"/>
-                                        </StackPanel>
-                                    </ui:Card>
-                                </ScrollViewer>
-                            </TabItem>
-
-                            <!-- OPERATIONAL KPI (Partner-wide) -->
-                            <TabItem Header="Operational">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ui:Card Padding="16" Margin="12">
-                                        <StackPanel >
-                                            <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Operational KPI (Partner-wide)" />
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="DOA Rate (%):"/>
-                                                    <ui:TextBox x:Name="TxtOpDoaRate"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Avg RMA Lead Time (Days):"/>
-                                                    <ui:TextBox x:Name="TxtOpRmaTime"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Asset Data Quality (%):"/>
-                                                    <ui:TextBox x:Name="TxtOpDataQuality"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Operational Issues Count:"/>
-                                                    <ui:TextBox x:Name="TxtOpIssuesCount"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Target Met:"/>
-                                                    <ComboBox x:Name="CboOpTargetMet" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="Yes"/>
-                                                        <ComboBoxItem Content="No"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Comments:"/>
-                                                    <ui:TextBox x:Name="TxtOpComments"/>
-                                                </StackPanel>
-                                            </Grid>
-                                            <ui:Button Content="Save Operational KPIs" Click="BtnSaveOperational_Click" Appearance="Primary" HorizontalAlignment="Right"/>
-                                        </StackPanel>
-                                    </ui:Card>
-                                </ScrollViewer>
-                            </TabItem>
-
-                            <!-- STRATEGIC KPI (Partner-wide) -->
-                            <TabItem Header="Strategic">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ui:Card Padding="16" Margin="12">
-                                        <StackPanel >
-                                            <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Strategic KPI (Partner-wide)" />
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Degree of Standardization:"/>
-                                                    <ComboBox x:Name="CboStratStd" HorizontalAlignment="Stretch">
-                                                        <ComboBoxItem Content="High"/>
-                                                        <ComboBoxItem Content="Medium"/>
-                                                        <ComboBoxItem Content="Low"/>
-                                                    </ComboBox>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Avg Time-to-Deploy (Days):"/>
-                                                    <ui:TextBox x:Name="TxtStratDeployTime"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Customer Impact Score (1-5):"/>
-                                                    <ui:TextBox x:Name="TxtStratImpactScore"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,8" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Strategic Fit Assessment:"/>
-                                                    <ui:TextBox x:Name="TxtStratFit"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" >
-                                                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Comments:"/>
-                                                    <ui:TextBox x:Name="TxtStratComments"/>
-                                                </StackPanel>
-                                            </Grid>
-                                            <ui:Button Content="Save Strategic KPIs" Click="BtnSaveStrategic_Click" Appearance="Primary" HorizontalAlignment="Right"/>
                                         </StackPanel>
                                     </ui:Card>
                                 </ScrollViewer>
@@ -671,70 +431,6 @@
                                         <ui:Button Grid.Row="1" Grid.Column="2" Content="Log Activity" Click="BtnAddActivity_Click" Appearance="Secondary" VerticalAlignment="Bottom" HorizontalAlignment="Stretch"/>
                                     </Grid>
                                 </StackPanel>
-                            </ui:Card>
-                        </Grid>
-                    </TabItem>
-
-                    <!-- CAMPAIGNS & CASES TAB -->
-                    <TabItem Header="Campaigns &amp; Cases">
-                        <Grid Margin="12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Campaigns -->
-                            <ui:Card Grid.Column="0" Margin="0,0,6,0" Padding="12">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Marketing Campaigns" Margin="0,0,0,8"/>
-                                    <ListView Grid.Row="1" x:Name="LstCampaigns" Height="180">
-                                        <ListView.View>
-                                            <GridView>
-                                                <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="100"/>
-                                                <GridViewColumn Header="Budget" DisplayMemberBinding="{Binding Budget, StringFormat={}{0:C}}" Width="80"/>
-                                                <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" Width="80"/>
-                                            </GridView>
-                                        </ListView.View>
-                                    </ListView>
-                                    <StackPanel Grid.Row="2" Margin="0,8,0,0" >
-                                        <ui:TextBox x:Name="TxtNewCampName" PlaceholderText="Campaign Name"/>
-                                        <ui:TextBox x:Name="TxtNewCampBudget" PlaceholderText="Budget (e.g. 5000)"/>
-                                        <ui:TextBox x:Name="TxtNewCampStatus" PlaceholderText="Status (e.g. Planned, Active)"/>
-                                        <ui:Button Content="Add Campaign" Click="BtnAddCampaign_Click" Appearance="Secondary" HorizontalAlignment="Stretch"/>
-                                    </StackPanel>
-                                </Grid>
-                            </ui:Card>
-
-                            <!-- Customer Cases -->
-                            <ui:Card Grid.Column="1" Margin="6,0,0,0" Padding="12">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Customer Reference Cases" Margin="0,0,0,8"/>
-                                    <ListView Grid.Row="1" x:Name="LstCases" Height="180">
-                                        <ListView.View>
-                                            <GridView>
-                                                <GridViewColumn Header="Customer" DisplayMemberBinding="{Binding CustomerName}" Width="110"/>
-                                                <GridViewColumn Header="Status" DisplayMemberBinding="{Binding ApprovalStatus}" Width="80"/>
-                                                <GridViewColumn Header="Owner" DisplayMemberBinding="{Binding Owner}" Width="90"/>
-                                            </GridView>
-                                        </ListView.View>
-                                    </ListView>
-                                    <StackPanel Grid.Row="2" Margin="0,8,0,0" >
-                                        <ui:TextBox x:Name="TxtNewCaseCust" PlaceholderText="Customer Name"/>
-                                        <ui:TextBox x:Name="TxtNewCaseOwner" PlaceholderText="Case Owner"/>
-                                        <ui:TextBox x:Name="TxtNewCaseStatus" PlaceholderText="Approval Status (e.g. Approved)"/>
-                                        <ui:Button Content="Add Reference Case" Click="BtnAddCase_Click" Appearance="Secondary" HorizontalAlignment="Stretch"/>
-                                    </StackPanel>
-                                </Grid>
                             </ui:Card>
                         </Grid>
                     </TabItem>

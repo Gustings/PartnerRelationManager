@@ -12,14 +12,13 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Page Header -->
             <StackPanel Grid.Row="0" Margin="0,0,0,16">
                 <TextBlock Style="{DynamicResource TitleTextBlockStyle}" Text="SRM Settings &amp; Tools" />
                 <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" 
-                              Text="Import/export your data, add custom configuration parameters, and perform database maintenance." />
+                              Text="Import/export your data and perform database maintenance." />
             </StackPanel>
 
             <!-- Excel Operations -->
@@ -32,54 +31,13 @@
                     
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" >
                         <ui:Button Content="Import Excel Tracker Data" Icon="FolderOpen24" Appearance="Primary" Click="BtnImportExcel_Click"/>
-                        <ui:Button Content="Export Data to Excel" Icon="ArrowExportLtr24" Appearance="Secondary" Click="BtnExportExcel_Click"/>
+                        <ui:Button Content="Export Data to Excel" Icon="ArrowExportLtr24" Appearance="Secondary" Click="BtnExportExcel_Click" Margin="8,0,0,0"/>
                     </StackPanel>
                 </StackPanel>
             </ui:Card>
 
-            <!-- Custom Configuration (Countries & Tiers) -->
-            <Grid Grid.Row="2" Margin="0,0,0,16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Add Country -->
-                <ui:Card Grid.Column="0" Margin="0,0,8,0" Padding="16">
-                    <StackPanel >
-                        <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Add Custom Country" />
-                        
-                        <StackPanel >
-                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Country Name:"/>
-                            <ui:TextBox x:Name="TxtCountryName" PlaceholderText="e.g. United Kingdom"/>
-                        </StackPanel>
-
-                        <StackPanel >
-                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Country Code (UNIQUE):"/>
-                            <ui:TextBox x:Name="TxtCountryCode" PlaceholderText="e.g. UK"/>
-                        </StackPanel>
-
-                        <ui:Button Content="Add Country" Appearance="Secondary" Click="BtnAddCountry_Click" HorizontalAlignment="Right" Margin="0,8,0,0"/>
-                    </StackPanel>
-                </ui:Card>
-
-                <!-- Add Tier -->
-                <ui:Card Grid.Column="1" Margin="8,0,0,0" Padding="16">
-                    <StackPanel >
-                        <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Add Custom Program Tier" />
-
-                        <StackPanel  Height="114">
-                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Tier Name (UNIQUE):"/>
-                            <ui:TextBox x:Name="TxtTierName" PlaceholderText="e.g. Platinum Partner"/>
-                        </StackPanel>
-
-                        <ui:Button Content="Add Tier" Appearance="Secondary" Click="BtnAddTier_Click" HorizontalAlignment="Right" Margin="0,8,0,0"/>
-                    </StackPanel>
-                </ui:Card>
-            </Grid>
-
             <!-- Database Administration -->
-            <ui:Card Grid.Row="3" Padding="16" Background="#FFFDF0F0" BorderBrush="#FFF0C4C4">
+            <ui:Card Grid.Row="2" Padding="16" Background="#FFFDF0F0" BorderBrush="#FFF0C4C4">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>

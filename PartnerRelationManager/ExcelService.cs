@@ -10,6 +10,19 @@ namespace PartnerRelationManager.Services
 {
     public static class ExcelService
     {
+        private static string GetCountryName(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return string.Empty;
+            switch (code.Trim().ToUpperInvariant())
+            {
+                case "NO": return "Norway";
+                case "SE": return "Sweden";
+                case "DK": return "Denmark";
+                case "FI": return "Finland";
+                default: return code.Trim();
+            }
+        }
+
         public static void ImportTrackerData(string filePath)
         {
             if (!File.Exists(filePath))
@@ -29,11 +42,29 @@ namespace PartnerRelationManager.Services
 
                 foreach (var row in rows)
                 {
-                    string partnerName = GetString(row, headers, "Partner Name");
-                    if (string.IsNullOrWhiteSpace(partnerName)) continue;
+                    string rawPartnerName = GetString(row, headers, "Partner Name");
+                    if (string.IsNullOrWhiteSpace(rawPartnerName)) continue;
+
+                    string countryCode = GetString(row, headers, "Countries (NO/SE/DK/FI)");
+                    if (string.IsNullOrWhiteSpace(countryCode))
+                    {
+                        // Try to find if country code is part of Partner Name, e.g. "HP NO"
+                        var parts = rawPartnerName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length > 1)
+                        {
+                            var last = parts[^1].ToUpperInvariant();
+                            if (last == "NO" || last == "SE" || last == "DK" || last == "FI")
+                            {
+                                countryCode = last;
+                                rawPartnerName = string.Join(" ", parts.Take(parts.Length - 1));
+                            }
+                        }
+                    }
+
+                    string countryName = GetCountryName(countryCode);
+                    string partnerName = string.IsNullOrEmpty(countryName) ? rawPartnerName : $"{rawPartnerName} {countryName}";
 
                     string partnerType = GetString(row, headers, "Partner Type (OEM/Preferred)");
-                    string countriesStr = GetString(row, headers, "Countries (NO/SE/DK/FI)");
                     string primarySalesModel = GetString(row, headers, "Primary Sales Model (XaaS/Hybrid/Upfront)");
                     string partnerProgram = GetString(row, headers, "Partner Program");
                     string currentTier = GetString(row, headers, "Current Tier");
@@ -43,36 +74,45 @@ namespace PartnerRelationManager.Services
                     string overallStatus = GetString(row, headers, "Overall Status (Green/Amber/Red)");
                     string comments = GetString(row, headers, "Comments");
 
-                    // Insert/Update Partner
                     var existingPartner = connection.QueryFirstOrDefault<Partner>(
                         "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
 
-                    int partnerId;
                     if (existingPartner == null)
                     {
-                        partnerId = connection.QuerySingle<int>(@"
-                            INSERT INTO Partners (Name, InternalOwner, Category, StrategicImportance, Status, BusinessAreas)
-                            VALUES (@Name, @InternalOwner, @Category, @StrategicImportance, @Status, @BusinessAreas);
-                            SELECT last_insert_rowid();",
+                        connection.Execute(@"
+                            INSERT INTO Partners (Name, InternalOwner, Category, StrategicImportance, Status, BusinessAreas,
+                                                 CountryCode, PartnerProgram, CurrentTier, PartnerIdentification, QbrFrequency, Comments)
+                            VALUES (@Name, @InternalOwner, @Category, 'Medium', @Status, @BusinessAreas,
+                                    @CountryCode, @PartnerProgram, @CurrentTier, @PartnerIdentification, @QbrFrequency, @Comments);",
                             new
                             {
                                 Name = partnerName,
                                 InternalOwner = strategicOwner,
                                 Category = partnerType,
-                                StrategicImportance = "Medium", // default
                                 Status = overallStatus,
-                                BusinessAreas = primarySalesModel
+                                BusinessAreas = primarySalesModel,
+                                CountryCode = countryCode,
+                                PartnerProgram = partnerProgram,
+                                CurrentTier = currentTier,
+                                PartnerIdentification = partnerIdStr,
+                                QbrFrequency = qbrFreq,
+                                Comments = comments
                             });
                     }
                     else
                     {
-                        partnerId = existingPartner.Id;
                         connection.Execute(@"
                             UPDATE Partners
                             SET InternalOwner = @InternalOwner,
                                 Category = @Category,
                                 Status = @Status,
-                                BusinessAreas = @BusinessAreas
+                                BusinessAreas = @BusinessAreas,
+                                CountryCode = @CountryCode,
+                                PartnerProgram = @PartnerProgram,
+                                CurrentTier = @CurrentTier,
+                                PartnerIdentification = @PartnerIdentification,
+                                QbrFrequency = @QbrFrequency,
+                                Comments = @Comments
                             WHERE Id = @Id;",
                             new
                             {
@@ -80,58 +120,14 @@ namespace PartnerRelationManager.Services
                                 Category = partnerType,
                                 Status = overallStatus,
                                 BusinessAreas = primarySalesModel,
-                                Id = partnerId
+                                CountryCode = countryCode,
+                                PartnerProgram = partnerProgram,
+                                CurrentTier = currentTier,
+                                PartnerIdentification = partnerIdStr,
+                                QbrFrequency = qbrFreq,
+                                Comments = comments,
+                                Id = existingPartner.Id
                             });
-                    }
-
-                    // Process Country & Tier for PartnerTier
-                    if (!string.IsNullOrWhiteSpace(countriesStr))
-                    {
-                        var countryList = countriesStr.Split(new[] { ',', '/', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                                                      .Select(c => c.Trim());
-
-                        foreach (var cCode in countryList)
-                        {
-                            var country = connection.QueryFirstOrDefault<Country>(
-                                "SELECT * FROM Countries WHERE Code = @Code", new { Code = cCode });
-
-                            int countryId;
-                            if (country == null)
-                            {
-                                countryId = connection.QuerySingle<int>(
-                                    "INSERT INTO Countries (Name, Code) VALUES (@Name, @Code); SELECT last_insert_rowid();",
-                                    new { Name = cCode, Code = cCode });
-                            }
-                            else
-                            {
-                                countryId = country.Id;
-                            }
-
-                            int tierId = 1; // Default 'None'
-                            if (!string.IsNullOrWhiteSpace(currentTier))
-                            {
-                                var tier = connection.QueryFirstOrDefault<Tier>(
-                                    "SELECT * FROM Tiers WHERE Name = @Name", new { Name = currentTier });
-
-                                if (tier == null)
-                                {
-                                    tierId = connection.QuerySingle<int>(
-                                        "INSERT INTO Tiers (Name) VALUES (@Name); SELECT last_insert_rowid();",
-                                        new { Name = currentTier });
-                                }
-                                else
-                                {
-                                    tierId = tier.Id;
-                                }
-                            }
-
-                            // Upsert PartnerTier for Period 2025
-                            connection.Execute(@"
-                                INSERT INTO PartnerTiers (PartnerId, CountryId, Period, TierId)
-                                VALUES (@PartnerId, @CountryId, 2025, @TierId)
-                                ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET TierId = @TierId;",
-                                new { PartnerId = partnerId, CountryId = countryId, TierId = tierId });
-                        }
                     }
                 }
             }
@@ -147,11 +143,7 @@ namespace PartnerRelationManager.Services
                     string partnerName = GetString(row, headers, "Partner Name");
                     if (string.IsNullOrWhiteSpace(partnerName)) continue;
 
-                    var partner = connection.QueryFirstOrDefault<Partner>(
-                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
-                    if (partner == null) continue;
-
-                    string country = GetString(row, headers, "Countries");
+                    string countryFilter = GetString(row, headers, "Countries");
                     string contactType = GetString(row, headers, "Contact type");
                     string contactName = GetString(row, headers, "Name");
                     string phone = GetString(row, headers, "Phone Number");
@@ -160,41 +152,52 @@ namespace PartnerRelationManager.Services
 
                     if (string.IsNullOrWhiteSpace(contactName) && string.IsNullOrWhiteSpace(email)) continue;
 
-                    // Check if contact already exists
-                    var existingContact = connection.QueryFirstOrDefault<Contact>(
-                        "SELECT * FROM Contacts WHERE PartnerId = @PartnerId AND Name = @Name",
-                        new { PartnerId = partner.Id, Name = contactName ?? string.Empty });
-
-                    if (existingContact == null)
+                    // Find matching partners
+                    List<Partner> targets = new List<Partner>();
+                    if (countryFilter.Equals("Nordic", StringComparison.OrdinalIgnoreCase))
                     {
-                        connection.Execute(@"
-                            INSERT INTO Contacts (PartnerId, Name, Role, Email, Phone, Notes)
-                            VALUES (@PartnerId, @Name, @Role, @Email, @Phone, @Notes);",
-                            new
-                            {
-                                PartnerId = partner.Id,
-                                Name = contactName ?? string.Empty,
-                                Role = contactType,
-                                Email = email,
-                                Phone = phone,
-                                Notes = $"Country: {country}. Support: {support}"
-                            });
+                        targets = connection.Query<Partner>(
+                            "SELECT * FROM Partners WHERE Name LIKE @Pattern",
+                            new { Pattern = partnerName + "%" })
+                            .Where(p => p.Name.Equals($"{partnerName} Norway", StringComparison.OrdinalIgnoreCase) ||
+                                        p.Name.Equals($"{partnerName} Sweden", StringComparison.OrdinalIgnoreCase) ||
+                                        p.Name.Equals($"{partnerName} Denmark", StringComparison.OrdinalIgnoreCase) ||
+                                        p.Name.Equals($"{partnerName} Finland", StringComparison.OrdinalIgnoreCase) ||
+                                        p.Name.Equals(partnerName, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                    }
+                    else
+                    {
+                        string cName = GetCountryName(countryFilter);
+                        string targetName = $"{partnerName} {cName}";
+                        var p = connection.QueryFirstOrDefault<Partner>(
+                            "SELECT * FROM Partners WHERE Name = @Name", new { Name = targetName });
+                        if (p != null) targets.Add(p);
+                    }
+
+                    foreach (var targetPartner in targets)
+                    {
+                        var existingContact = connection.QueryFirstOrDefault<Contact>(
+                            "SELECT * FROM Contacts WHERE PartnerId = @PartnerId AND Name = @Name",
+                            new { PartnerId = targetPartner.Id, Name = contactName ?? string.Empty });
+
+                        if (existingContact == null)
+                        {
+                            connection.Execute(@"
+                                INSERT INTO Contacts (PartnerId, Name, Role, Email, Phone, Notes)
+                                VALUES (@PartnerId, @Name, @Role, @Email, @Phone, @Notes);",
+                                new
+                                {
+                                    PartnerId = targetPartner.Id,
+                                    Name = contactName ?? string.Empty,
+                                    Role = contactType,
+                                    Email = email,
+                                    Phone = phone,
+                                    Notes = $"Support: {support}"
+                                });
+                        }
                     }
                 }
-            }
-
-            // Helper to find country by code or name
-            int GetOrCreateCountryId(string codeOrName)
-            {
-                if (string.IsNullOrWhiteSpace(codeOrName)) return 1; // default to first
-                var country = connection.QueryFirstOrDefault<Country>(
-                    "SELECT * FROM Countries WHERE Code = @Code OR Name = @Name",
-                    new { Code = codeOrName, Name = codeOrName });
-                if (country != null) return country.Id;
-
-                return connection.QuerySingle<int>(
-                    "INSERT INTO Countries (Name, Code) VALUES (@Name, @Code); SELECT last_insert_rowid();",
-                    new { Name = codeOrName, Code = codeOrName });
             }
 
             // 3. Import KPI Commercial
@@ -208,14 +211,15 @@ namespace PartnerRelationManager.Services
                     string partnerName = GetString(row, headers, "Partner Name");
                     if (string.IsNullOrWhiteSpace(partnerName)) continue;
 
+                    string countryCode = GetString(row, headers, "Country");
+                    string countryName = GetCountryName(countryCode);
+                    string targetPartnerName = $"{partnerName} {countryName}";
+
                     var partner = connection.QueryFirstOrDefault<Partner>(
-                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
+                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = targetPartnerName });
                     if (partner == null) continue;
 
                     int period = GetInt(row, headers, "Period") ?? 2025;
-                    string countryCode = GetString(row, headers, "Country");
-                    int countryId = GetOrCreateCountryId(countryCode);
-
                     decimal? arr = GetDecimal(row, headers, "Annual Recurring Revenue");
                     decimal? upfront = GetDecimal(row, headers, "Upfront Revenue");
                     double? oemAttach = GetDouble(row, headers, "OEM Service Attach Rate (%)");
@@ -225,15 +229,14 @@ namespace PartnerRelationManager.Services
                     string comments = GetString(row, headers, "Comments");
 
                     connection.Execute(@"
-                        INSERT INTO KPI_Commercial (PartnerId, CountryId, Period, AnnualRecurringRevenue, UpfrontRevenue, OemServiceAttachRate, OnitioServiceAttachRate, LifecycleMargin, TargetMet, Comments)
-                        VALUES (@PartnerId, @CountryId, @Period, @AnnualRecurringRevenue, @UpfrontRevenue, @OemServiceAttachRate, @OnitioServiceAttachRate, @LifecycleMargin, @TargetMet, @Comments)
-                        ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET
+                        INSERT INTO KPI_Commercial (PartnerId, Period, AnnualRecurringRevenue, UpfrontRevenue, OemServiceAttachRate, OnitioServiceAttachRate, LifecycleMargin, TargetMet, Comments)
+                        VALUES (@PartnerId, @Period, @AnnualRecurringRevenue, @UpfrontRevenue, @OemServiceAttachRate, @OnitioServiceAttachRate, @LifecycleMargin, @TargetMet, @Comments)
+                        ON CONFLICT(PartnerId, Period) DO UPDATE SET
                             AnnualRecurringRevenue=@AnnualRecurringRevenue, UpfrontRevenue=@UpfrontRevenue, OemServiceAttachRate=@OemServiceAttachRate,
                             OnitioServiceAttachRate=@OnitioServiceAttachRate, LifecycleMargin=@LifecycleMargin, TargetMet=@TargetMet, Comments=@Comments;",
                         new
                         {
                             PartnerId = partner.Id,
-                            CountryId = countryId,
                             Period = period,
                             AnnualRecurringRevenue = arr,
                             UpfrontRevenue = upfront,
@@ -242,142 +245,6 @@ namespace PartnerRelationManager.Services
                             LifecycleMargin = margin,
                             TargetMet = targetMet,
                             Comments = comments
-                        });
-                }
-            }
-
-            // 4. Import KPI Operational
-            if (workbook.TryGetWorksheet("KPI_Operational", out var operationalSheet))
-            {
-                var headers = GetHeaders(operationalSheet);
-                var rows = operationalSheet.RowsUsed().Skip(1);
-
-                foreach (var row in rows)
-                {
-                    string partnerName = GetString(row, headers, "Partner Name");
-                    if (string.IsNullOrWhiteSpace(partnerName)) continue;
-
-                    var partner = connection.QueryFirstOrDefault<Partner>(
-                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
-                    if (partner == null) continue;
-
-                    int period = GetInt(row, headers, "Period") ?? 2025;
-                    double? doa = GetDouble(row, headers, "DOA Rate (%)");
-                    double? rma = GetDouble(row, headers, "Avg RMA Lead Time (Days)");
-                    double? dataQuality = GetDouble(row, headers, "Asset Data Quality (%)");
-                    int? issues = GetInt(row, headers, "Operational Issues (Count)");
-                    string targetMet = GetString(row, headers, "Target Met (Yes/No)");
-                    string comments = GetString(row, headers, "Comments");
-
-                    connection.Execute(@"
-                        INSERT INTO KPI_Operational (PartnerId, Period, DoaRate, AvgRmaLeadTime, AssetDataQuality, OperationalIssuesCount, TargetMet, Comments)
-                        VALUES (@PartnerId, @Period, @DoaRate, @AvgRmaLeadTime, @AssetDataQuality, @OperationalIssuesCount, @TargetMet, @Comments)
-                        ON CONFLICT(PartnerId, Period) DO UPDATE SET
-                            DoaRate=@DoaRate, AvgRmaLeadTime=@AvgRmaLeadTime, AssetDataQuality=@AssetDataQuality,
-                            OperationalIssuesCount=@OperationalIssuesCount, TargetMet=@TargetMet, Comments=@Comments;",
-                        new
-                        {
-                            PartnerId = partner.Id,
-                            Period = period,
-                            DoaRate = doa,
-                            AvgRmaLeadTime = rma,
-                            AssetDataQuality = dataQuality,
-                            OperationalIssuesCount = issues,
-                            TargetMet = targetMet,
-                            Comments = comments
-                        });
-                }
-            }
-
-            // 5. Import KPI Strategic
-            if (workbook.TryGetWorksheet("KPI_Strategic", out var strategicSheet))
-            {
-                var headers = GetHeaders(strategicSheet);
-                var rows = strategicSheet.RowsUsed().Skip(1);
-
-                foreach (var row in rows)
-                {
-                    string partnerName = GetString(row, headers, "Partner Name");
-                    if (string.IsNullOrWhiteSpace(partnerName)) continue;
-
-                    var partner = connection.QueryFirstOrDefault<Partner>(
-                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
-                    if (partner == null) continue;
-
-                    int period = GetInt(row, headers, "Period") ?? 2025;
-                    string std = GetString(row, headers, "Degree of Standardization (High/Medium/Low)");
-                    double? deployTime = GetDouble(row, headers, "Avg Time-to-Deploy (Days)");
-                    double? impact = GetDouble(row, headers, "Customer Impact Score (1-5)");
-                    string fit = GetString(row, headers, "Strategic Fit Assessment");
-                    string comments = GetString(row, headers, "Comments");
-
-                    connection.Execute(@"
-                        INSERT INTO KPI_Strategic (PartnerId, Period, DegreeOfStandardization, AvgTimeToDeploy, CustomerImpactScore, StrategicFitAssessment, Comments)
-                        VALUES (@PartnerId, @Period, @DegreeOfStandardization, @AvgTimeToDeploy, @CustomerImpactScore, @StrategicFitAssessment, @Comments)
-                        ON CONFLICT(PartnerId, Period) DO UPDATE SET
-                            DegreeOfStandardization=@DegreeOfStandardization, AvgTimeToDeploy=@AvgTimeToDeploy,
-                            CustomerImpactScore=@CustomerImpactScore, StrategicFitAssessment=@StrategicFitAssessment, Comments=@Comments;",
-                        new
-                        {
-                            PartnerId = partner.Id,
-                            Period = period,
-                            DegreeOfStandardization = std,
-                            AvgTimeToDeploy = deployTime,
-                            CustomerImpactScore = impact,
-                            StrategicFitAssessment = fit,
-                            Comments = comments
-                        });
-                }
-            }
-
-            // 6. Import KPI Compliance
-            if (workbook.TryGetWorksheet("KPI_Compliance", out var complianceSheet))
-            {
-                var headers = GetHeaders(complianceSheet);
-                var rows = complianceSheet.RowsUsed().Skip(1);
-
-                foreach (var row in rows)
-                {
-                    string partnerName = GetString(row, headers, "Partner Name");
-                    if (string.IsNullOrWhiteSpace(partnerName)) continue;
-
-                    var partner = connection.QueryFirstOrDefault<Partner>(
-                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
-                    if (partner == null) continue;
-
-                    string countryCode = GetString(row, headers, "Country");
-                    int countryId = GetOrCreateCountryId(countryCode);
-                    int period = 2025; // default
-
-                    string certsNeeded = GetString(row, headers, "Certifications Needed (Yes/No)");
-                    int? reqCerts = GetInt(row, headers, "Required Certifications");
-                    double? covered = GetDouble(row, headers, "Certifications Covered (%)");
-                    int? exp3 = GetInt(row, headers, "Certs Expiring < 3 Months");
-                    int? exp6 = GetInt(row, headers, "Certs Expiring < 6 Months");
-                    int? exp12 = GetInt(row, headers, "Certs Expiring < 12 Months");
-                    string status = GetString(row, headers, "Program Compliance Status (OK/Deviation)");
-                    string risk = GetString(row, headers, "Tier Risk (Yes/No)");
-
-                    connection.Execute(@"
-                        INSERT INTO KPI_Compliance (PartnerId, CountryId, Period, CertificationsNeeded, RequiredCertifications, CertificationsCovered, CertsExpiring3Months, CertsExpiring6Months, CertsExpiring12Months, ProgramComplianceStatus, TierRisk, Comments)
-                        VALUES (@PartnerId, @CountryId, @Period, @CertificationsNeeded, @RequiredCertifications, @CertificationsCovered, @CertsExpiring3Months, @CertsExpiring6Months, @CertsExpiring12Months, @ProgramComplianceStatus, @TierRisk, '')
-                        ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET
-                            CertificationsNeeded=@CertificationsNeeded, RequiredCertifications=@RequiredCertifications, CertificationsCovered=@CertificationsCovered,
-                            CertsExpiring3Months=@CertsExpiring3Months, CertsExpiring6Months=@CertsExpiring6Months, CertsExpiring12Months=@CertsExpiring12Months,
-                            ProgramComplianceStatus=@ProgramComplianceStatus, TierRisk=@TierRisk;",
-                        new
-                        {
-                            PartnerId = partner.Id,
-                            CountryId = countryId,
-                            Period = period,
-                            CertificationsNeeded = certsNeeded,
-                            RequiredCertifications = reqCerts,
-                            CertificationsCovered = covered,
-                            CertsExpiring3Months = exp3,
-                            CertsExpiring6Months = exp6,
-                            CertsExpiring12Months = exp12,
-                            ProgramComplianceStatus = status,
-                            TierRisk = risk
                         });
                 }
             }
@@ -393,14 +260,15 @@ namespace PartnerRelationManager.Services
                     string partnerName = GetString(row, headers, "Partner Name");
                     if (string.IsNullOrWhiteSpace(partnerName)) continue;
 
+                    string countryCode = GetString(row, headers, "Country");
+                    string countryName = GetCountryName(countryCode);
+                    string targetPartnerName = $"{partnerName} {countryName}";
+
                     var partner = connection.QueryFirstOrDefault<Partner>(
-                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
+                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = targetPartnerName });
                     if (partner == null) continue;
 
                     int period = GetInt(row, headers, "Period") ?? 2025;
-                    string countryCode = GetString(row, headers, "Country");
-                    int countryId = GetOrCreateCountryId(countryCode);
-
                     decimal? revOnitio = GetDecimal(row, headers, "Reported Revenue (Onitio)");
                     decimal? revOem = GetDecimal(row, headers, "Reported Revenue (OEM)");
                     double? variance = GetDouble(row, headers, "Variance (%)");
@@ -410,15 +278,14 @@ namespace PartnerRelationManager.Services
                     string comments = GetString(row, headers, "Comments");
 
                     connection.Execute(@"
-                        INSERT INTO KPI_ProgramControl (PartnerId, CountryId, Period, ReportedRevenueOnitio, ReportedRevenueOem, Variance, RebateEligibility, TierProgress, RiskOfDowngrade, Comments)
-                        VALUES (@PartnerId, @CountryId, @Period, @ReportedRevenueOnitio, @ReportedRevenueOem, @Variance, @RebateEligibility, @TierProgress, @RiskOfDowngrade, @Comments)
-                        ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET
+                        INSERT INTO KPI_ProgramControl (PartnerId, Period, ReportedRevenueOnitio, ReportedRevenueOem, Variance, RebateEligibility, TierProgress, RiskOfDowngrade, Comments)
+                        VALUES (@PartnerId, @Period, @ReportedRevenueOnitio, @ReportedRevenueOem, @Variance, @RebateEligibility, @TierProgress, @RiskOfDowngrade, @Comments)
+                        ON CONFLICT(PartnerId, Period) DO UPDATE SET
                             ReportedRevenueOnitio=@ReportedRevenueOnitio, ReportedRevenueOem=@ReportedRevenueOem, Variance=@Variance,
                             RebateEligibility=@RebateEligibility, TierProgress=@TierProgress, RiskOfDowngrade=@RiskOfDowngrade, Comments=@Comments;",
                         new
                         {
                             PartnerId = partner.Id,
-                            CountryId = countryId,
                             Period = period,
                             ReportedRevenueOnitio = revOnitio,
                             ReportedRevenueOem = revOem,
@@ -431,56 +298,7 @@ namespace PartnerRelationManager.Services
                 }
             }
 
-            // 8. Import KPI Sustainability / ESG
-            if (workbook.TryGetWorksheet("KPI_Sustainability_ESG", out var esgSheet))
-            {
-                var headers = GetHeaders(esgSheet);
-                var rows = esgSheet.RowsUsed().Skip(1);
-
-                foreach (var row in rows)
-                {
-                    string partnerName = GetString(row, headers, "Partner Name");
-                    if (string.IsNullOrWhiteSpace(partnerName)) continue;
-
-                    var partner = connection.QueryFirstOrDefault<Partner>(
-                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
-                    if (partner == null) continue;
-
-                    string countryCode = GetString(row, headers, "Country");
-                    int countryId = GetOrCreateCountryId(countryCode);
-                    int period = 2025; // default
-
-                    string takeback = GetString(row, headers, "Take-back / Recycling Program (Yes/No)");
-                    string refurb = GetString(row, headers, "Refurb / Second Life Support (Yes/No)");
-                    string envData = GetString(row, headers, "Environmental Data Available (Yes/No)");
-                    string compliance = GetString(row, headers, "ESG Compliance Status (OK/Deviation)");
-                    string logistics = GetString(row, headers, "Logistics Emission Reduction Initiatives");
-                    string qualification = GetString(row, headers, "Sustainability Qualification Met (Yes/No)");
-                    string comments = GetString(row, headers, "Comments");
-
-                    connection.Execute(@"
-                        INSERT INTO KPI_SustainabilityESG (PartnerId, CountryId, Period, TakeBackRecyclingProgram, RefurbSecondLifeSupport, EnvironmentalDataAvailable, EsgComplianceStatus, LogisticsEmissionReduction, SustainabilityQualificationMet, Comments)
-                        VALUES (@PartnerId, @CountryId, @Period, @TakeBackRecyclingProgram, @RefurbSecondLifeSupport, @EnvironmentalDataAvailable, @EsgComplianceStatus, @LogisticsEmissionReduction, @SustainabilityQualificationMet, @Comments)
-                        ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET
-                            TakeBackRecyclingProgram=@TakeBackRecyclingProgram, RefurbSecondLifeSupport=@RefurbSecondLifeSupport, EnvironmentalDataAvailable=@EnvironmentalDataAvailable,
-                            EsgComplianceStatus=@EsgComplianceStatus, LogisticsEmissionReduction=@LogisticsEmissionReduction, SustainabilityQualificationMet=@SustainabilityQualificationMet, Comments=@Comments;",
-                        new
-                        {
-                            PartnerId = partner.Id,
-                            CountryId = countryId,
-                            Period = period,
-                            TakeBackRecyclingProgram = takeback,
-                            RefurbSecondLifeSupport = refurb,
-                            EnvironmentalDataAvailable = envData,
-                            EsgComplianceStatus = compliance,
-                            LogisticsEmissionReduction = logistics,
-                            SustainabilityQualificationMet = qualification,
-                            Comments = comments
-                        });
-                }
-            }
-
-            // 9. Import QBR Log to Activities
+            // 9. Import QBR Log to Activities (replicating across all partner country instances)
             if (workbook.TryGetWorksheet("QBR_Log", out var qbrSheet))
             {
                 var headers = GetHeaders(qbrSheet);
@@ -490,10 +308,6 @@ namespace PartnerRelationManager.Services
                 {
                     string partnerName = GetString(row, headers, "Partner Name");
                     if (string.IsNullOrWhiteSpace(partnerName)) continue;
-
-                    var partner = connection.QueryFirstOrDefault<Partner>(
-                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = partnerName });
-                    if (partner == null) continue;
 
                     DateTime? qbrDate = GetDateTime(row, headers, "QBR Date");
                     string qbrType = GetString(row, headers, "QBR Type (Regular/Extraordinary)");
@@ -508,26 +322,39 @@ namespace PartnerRelationManager.Services
                     string title = $"QBR - {qbrType}";
                     string description = $"Key Topics:\n{keyTopics}\n\nOpen Risks:\n{openRisks}\n\nActions Agreed:\n{actions}\n\nEscalation Level: {escalation}";
 
-                    // Check if already exists
-                    var existingActivity = connection.QueryFirstOrDefault<Activity>(
-                        "SELECT * FROM Activities WHERE PartnerId = @PartnerId AND Title = @Title AND ActivityDate = @ActivityDate",
-                        new { PartnerId = partner.Id, Title = title, ActivityDate = qbrDate?.ToString("yyyy-MM-dd HH:mm:ss") });
+                    // Find all country-specific partner instances in db for partnerName
+                    var targets = connection.Query<Partner>(
+                        "SELECT * FROM Partners WHERE Name LIKE @Pattern",
+                        new { Pattern = partnerName + "%" })
+                        .Where(p => p.Name.Equals($"{partnerName} Norway", StringComparison.OrdinalIgnoreCase) ||
+                                    p.Name.Equals($"{partnerName} Sweden", StringComparison.OrdinalIgnoreCase) ||
+                                    p.Name.Equals($"{partnerName} Denmark", StringComparison.OrdinalIgnoreCase) ||
+                                    p.Name.Equals($"{partnerName} Finland", StringComparison.OrdinalIgnoreCase) ||
+                                    p.Name.Equals(partnerName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
 
-                    if (existingActivity == null)
+                    foreach (var targetPartner in targets)
                     {
-                        connection.Execute(@"
-                            INSERT INTO Activities (PartnerId, ActivityDate, Type, Title, Description, Owner, Status, DueDate)
-                            VALUES (@PartnerId, @ActivityDate, 'QBR', @Title, @Description, @Owner, @Status, @DueDate);",
-                            new
-                            {
-                                PartnerId = partner.Id,
-                                ActivityDate = qbrDate?.ToString("yyyy-MM-dd HH:mm:ss"),
-                                Title = title,
-                                Description = description,
-                                Owner = owner,
-                                Status = status,
-                                DueDate = dueDate?.ToString("yyyy-MM-dd HH:mm:ss")
-                            });
+                        var existingActivity = connection.QueryFirstOrDefault<Activity>(
+                            "SELECT * FROM Activities WHERE PartnerId = @PartnerId AND Title = @Title AND ActivityDate = @ActivityDate",
+                            new { PartnerId = targetPartner.Id, Title = title, ActivityDate = qbrDate?.ToString("yyyy-MM-dd HH:mm:ss") });
+
+                        if (existingActivity == null)
+                        {
+                            connection.Execute(@"
+                                INSERT INTO Activities (PartnerId, ActivityDate, Type, Title, Description, Owner, Status, DueDate)
+                                VALUES (@PartnerId, @ActivityDate, 'QBR', @Title, @Description, @Owner, @Status, @DueDate);",
+                                new
+                                {
+                                    PartnerId = targetPartner.Id,
+                                    ActivityDate = qbrDate?.ToString("yyyy-MM-dd HH:mm:ss"),
+                                    Title = title,
+                                    Description = description,
+                                    Owner = owner,
+                                    Status = status,
+                                    DueDate = dueDate?.ToString("yyyy-MM-dd HH:mm:ss")
+                                });
+                        }
                     }
                 }
             }
@@ -539,68 +366,13 @@ namespace PartnerRelationManager.Services
             using var connection = DatabaseHelper.GetConnection();
             connection.Open();
 
-            // Export Partners
-            var partners = connection.Query<Partner>("SELECT * FROM Partners").ToList();
-            var wsPartners = workbook.Worksheets.Add("Partners");
-            WriteTable(wsPartners, partners);
-
-            // Export Countries
-            var countries = connection.Query<Country>("SELECT * FROM Countries").ToList();
-            var wsCountries = workbook.Worksheets.Add("Countries");
-            WriteTable(wsCountries, countries);
-
-            // Export Tiers
-            var tiers = connection.Query<Tier>("SELECT * FROM Tiers").ToList();
-            var wsTiers = workbook.Worksheets.Add("Tiers");
-            WriteTable(wsTiers, tiers);
-
-            // Export PartnerTiers
-            var partnerTiers = connection.Query<PartnerTier>(@"
-                SELECT pt.*, p.Name as PartnerName, c.Name as CountryName, t.Name as TierName
-                FROM PartnerTiers pt
-                JOIN Partners p ON pt.PartnerId = p.Id
-                JOIN Countries c ON pt.CountryId = c.Id
-                JOIN Tiers t ON pt.TierId = t.Id").ToList();
-            var wsPt = workbook.Worksheets.Add("Partner Tiers");
-            WriteTable(wsPt, partnerTiers);
-
-            // Export Contacts
-            var contacts = connection.Query<Contact>("SELECT * FROM Contacts").ToList();
-            var wsContacts = workbook.Worksheets.Add("Contacts");
-            WriteTable(wsContacts, contacts);
-
-            // Export Products
-            var products = connection.Query<ProductService>("SELECT * FROM ProductsServices").ToList();
-            var wsProducts = workbook.Worksheets.Add("Products & Services");
-            WriteTable(wsProducts, products);
-
-            // Export Campaigns
-            var campaigns = connection.Query<MarketingCampaign>("SELECT * FROM MarketingCampaigns").ToList();
-            var wsCampaigns = workbook.Worksheets.Add("Marketing Campaigns");
-            WriteTable(wsCampaigns, campaigns);
-
-            // Export Cases
-            var cases = connection.Query<CustomerCase>("SELECT * FROM CustomerCases").ToList();
-            var wsCases = workbook.Worksheets.Add("Customer Cases");
-            WriteTable(wsCases, cases);
-
-            // Export Activities
-            var activities = connection.Query<Activity>("SELECT * FROM Activities").ToList();
-            var wsActivities = workbook.Worksheets.Add("Activities");
-            WriteTable(wsActivities, activities);
-
-            // Export Documents
-            var docs = connection.Query<Document>("SELECT * FROM Documents").ToList();
-            var wsDocs = workbook.Worksheets.Add("Documents");
-            WriteTable(wsDocs, docs);
-
-            // Export KPI Tables
+            // Export 6 tables
+            WriteTable(workbook.Worksheets.Add("Partners"), connection.Query<Partner>("SELECT * FROM Partners").ToList());
+            WriteTable(workbook.Worksheets.Add("Contacts"), connection.Query<Contact>("SELECT * FROM Contacts").ToList());
             WriteTable(workbook.Worksheets.Add("KPI Commercial"), connection.Query<KPI_Commercial>("SELECT * FROM KPI_Commercial").ToList());
-            WriteTable(workbook.Worksheets.Add("KPI Compliance"), connection.Query<KPI_Compliance>("SELECT * FROM KPI_Compliance").ToList());
             WriteTable(workbook.Worksheets.Add("KPI Program Control"), connection.Query<KPI_ProgramControl>("SELECT * FROM KPI_ProgramControl").ToList());
-            WriteTable(workbook.Worksheets.Add("KPI Sustainability ESG"), connection.Query<KPI_SustainabilityESG>("SELECT * FROM KPI_SustainabilityESG").ToList());
-            WriteTable(workbook.Worksheets.Add("KPI Operational"), connection.Query<KPI_Operational>("SELECT * FROM KPI_Operational").ToList());
-            WriteTable(workbook.Worksheets.Add("KPI Strategic"), connection.Query<KPI_Strategic>("SELECT * FROM KPI_Strategic").ToList());
+            WriteTable(workbook.Worksheets.Add("Activities"), connection.Query<Activity>("SELECT * FROM Activities").ToList());
+            WriteTable(workbook.Worksheets.Add("Documents"), connection.Query<Document>("SELECT * FROM Documents").ToList());
 
             workbook.SaveAs(filePath);
         }
@@ -659,7 +431,6 @@ namespace PartnerRelationManager.Services
                            .Border.SetInsideBorder(XLBorderStyleValues.Thin);
         }
 
-        // Helper methods for robust cell reading
         private static Dictionary<string, int> GetHeaders(IXLWorksheet ws)
         {
             var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -710,7 +481,6 @@ namespace PartnerRelationManager.Services
                 string s = cell.GetString().Replace("%", "").Trim();
                 if (double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double d))
                 {
-                    // Check if it was in percentage format as text (e.g. "85") vs fraction (e.g. "0.85")
                     if (key.Contains("%") && d > 1.0 && cell.GetString().Contains("%"))
                     {
                         return d / 100.0;

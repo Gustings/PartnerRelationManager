@@ -12,13 +12,12 @@ using PartnerRelationManager.Models;
 using PartnerRelationManager.Services;
 
 using Activity = PartnerRelationManager.Models.Activity;
+
 namespace PartnerRelationManager
 {
     public partial class PartnersView : UserControl
     {
         private List<Partner> allPartners = new List<Partner>();
-        private List<Country> allCountries = new List<Country>();
-        private List<Tier> allTiers = new List<Tier>();
 
         public PartnersView()
         {
@@ -33,69 +32,8 @@ namespace PartnerRelationManager
 
         public void RefreshAll()
         {
-            LoadCountries();
-            LoadTiers();
             LoadPartners();
             RefreshDataForSelectedPartner();
-        }
-
-        private void LoadTiers()
-        {
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                allTiers = connection.Query<Tier>("SELECT * FROM Tiers ORDER BY Id;").ToList();
-                
-                CboPartnerTier.SelectedIndex = -1; // Clear selection first to prevent WPF internal cast issues
-                CboPartnerTier.ItemsSource = allTiers;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error loading tiers: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void LoadCountries()
-        {
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                allCountries = connection.Query<Country>("SELECT * FROM Countries ORDER BY Code;").ToList();
-                
-                // Detach selection event to avoid firing on intermediate changes and clear selection
-                CboCountry.SelectionChanged -= CboFilter_SelectionChanged;
-                
-                var previousSelection = CboCountry.SelectedValue;
-                CboCountry.SelectedIndex = -1; // Clear selection first to prevent WPF internal cast issues
-                CboCountry.ItemsSource = allCountries;
-                
-                if (allCountries.Count > 0)
-                {
-                    int? prevId = null;
-                    if (previousSelection is int idInt) prevId = idInt;
-                    else if (previousSelection is long idLong) prevId = (int)idLong;
-                    else if (previousSelection is Country countryObj) prevId = countryObj.Id;
-
-                    if (prevId != null && allCountries.Any(c => c.Id == prevId.Value))
-                    {
-                        CboCountry.SelectedValue = prevId.Value;
-                    }
-                    else
-                    {
-                        CboCountry.SelectedIndex = 0;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error loading countries: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                CboCountry.SelectionChanged += CboFilter_SelectionChanged;
-            }
         }
 
         private void LoadPartners()
@@ -149,12 +87,18 @@ namespace PartnerRelationManager
             TxtDetailPartnerName.Text = partner.Name;
             TxtDetailPartnerOwner.Text = partner.InternalOwner;
 
-            // Load profile text boxes
+            // Load profile fields
             TxtEditOwner.Text = partner.InternalOwner;
             TxtEditCategory.Text = partner.Category;
             TxtEditImportance.Text = partner.StrategicImportance;
             TxtEditStatus.Text = partner.Status;
             TxtEditBusinessAreas.Text = partner.BusinessAreas;
+            TxtEditCountryCode.Text = partner.CountryCode;
+            TxtEditPartnerProgram.Text = partner.PartnerProgram;
+            TxtEditCurrentTier.Text = partner.CurrentTier;
+            TxtEditPartnerIdentification.Text = partner.PartnerIdentification;
+            TxtEditQbrFrequency.Text = partner.QbrFrequency;
+            TxtEditComments.Text = partner.Comments;
 
             RefreshDataForSelectedPartner();
         }
@@ -169,9 +113,6 @@ namespace PartnerRelationManager
             var partner = LstPartners.SelectedItem as Partner;
             if (partner == null) return;
 
-            var country = CboCountry.SelectedItem as Country;
-            if (country == null) return;
-
             int period = GetSelectedPeriod();
 
             try
@@ -179,56 +120,23 @@ namespace PartnerRelationManager
                 using var connection = DatabaseHelper.GetConnection();
                 connection.Open();
 
-                // 1. Profile Lists (Contacts & Products)
+                // 1. Profile Lists (Contacts)
                 var contacts = connection.Query<Contact>("SELECT * FROM Contacts WHERE PartnerId = @PartnerId", new { PartnerId = partner.Id }).ToList();
                 LstContacts.ItemsSource = contacts;
-
-                var products = connection.Query<ProductService>("SELECT * FROM ProductsServices WHERE PartnerId = @PartnerId", new { PartnerId = partner.Id }).ToList();
-                LstProducts.ItemsSource = products;
 
                 // 2. Activities list
                 var activities = connection.Query<Activity>("SELECT * FROM Activities WHERE PartnerId = @PartnerId ORDER BY ActivityDate DESC", new { PartnerId = partner.Id }).ToList();
                 LstActivities.ItemsSource = activities;
 
-                // 3. Campaigns & Cases lists
-                var campaigns = connection.Query<MarketingCampaign>("SELECT * FROM MarketingCampaigns WHERE PartnerId = @PartnerId", new { PartnerId = partner.Id }).ToList();
-                LstCampaigns.ItemsSource = campaigns;
-
-                var cases = connection.Query<CustomerCase>("SELECT * FROM CustomerCases WHERE PartnerId = @PartnerId", new { PartnerId = partner.Id }).ToList();
-                LstCases.ItemsSource = cases;
-
-                // 4. Documents list
+                // 3. Documents list
                 var docs = connection.Query<Document>(
-                    "SELECT * FROM Documents WHERE PartnerId = @PartnerId AND CountryId = @CountryId AND Period = @Period",
-                    new { PartnerId = partner.Id, CountryId = country.Id, Period = period }).ToList();
+                    "SELECT * FROM Documents WHERE PartnerId = @PartnerId AND Period = @Period",
+                    new { PartnerId = partner.Id, Period = period }).ToList();
                 LstDocuments.ItemsSource = docs;
 
-                // 5. Load Partner Tier
-                var partnerTier = connection.QueryFirstOrDefault<PartnerTier>(@"
-                    SELECT pt.*, t.Name AS TierName
-                    FROM PartnerTiers pt
-                    JOIN Tiers t ON pt.TierId = t.Id
-                    WHERE pt.PartnerId = @PartnerId AND pt.CountryId = @CountryId AND pt.Period = @Period",
-                    new { PartnerId = partner.Id, CountryId = country.Id, Period = period });
-
-                if (partnerTier != null)
-                {
-                    CboPartnerTier.SelectedValue = partnerTier.TierId;
-                }
-                else
-                {
-                    var noneTier = allTiers.FirstOrDefault(t => t.Name.Equals("None", StringComparison.OrdinalIgnoreCase));
-                    if (noneTier != null) CboPartnerTier.SelectedValue = noneTier.Id;
-                    else CboPartnerTier.SelectedIndex = -1;
-                }
-
-                // 6. KPIs loading
-                LoadCommercialKpis(connection, partner.Id, country.Id, period);
-                LoadComplianceKpis(connection, partner.Id, country.Id, period);
-                LoadProgramControlKpis(connection, partner.Id, country.Id, period);
-                LoadEsgKpis(connection, partner.Id, country.Id, period);
-                LoadOperationalKpis(connection, partner.Id, period);
-                LoadStrategicKpis(connection, partner.Id, period);
+                // 4. KPIs loading
+                LoadCommercialKpis(connection, partner.Id, period);
+                LoadProgramControlKpis(connection, partner.Id, period);
             }
             catch (Exception ex)
             {
@@ -262,7 +170,13 @@ namespace PartnerRelationManager
                         Category = @Category, 
                         StrategicImportance = @StrategicImportance, 
                         Status = @Status, 
-                        BusinessAreas = @BusinessAreas 
+                        BusinessAreas = @BusinessAreas,
+                        CountryCode = @CountryCode,
+                        PartnerProgram = @PartnerProgram,
+                        CurrentTier = @CurrentTier,
+                        PartnerIdentification = @PartnerIdentification,
+                        QbrFrequency = @QbrFrequency,
+                        Comments = @Comments
                     WHERE Id = @Id;",
                     new
                     {
@@ -271,29 +185,29 @@ namespace PartnerRelationManager
                         StrategicImportance = TxtEditImportance.Text,
                         Status = TxtEditStatus.Text,
                         BusinessAreas = TxtEditBusinessAreas.Text,
+                        CountryCode = TxtEditCountryCode.Text,
+                        PartnerProgram = TxtEditPartnerProgram.Text,
+                        CurrentTier = TxtEditCurrentTier.Text,
+                        PartnerIdentification = TxtEditPartnerIdentification.Text,
+                        QbrFrequency = TxtEditQbrFrequency.Text,
+                        Comments = TxtEditComments.Text,
                         Id = partner.Id
                     });
-
-                var country = CboCountry.SelectedItem as Country;
-                int period = GetSelectedPeriod();
-                if (country != null && CboPartnerTier.SelectedValue != null)
-                {
-                    int tierId = (int)CboPartnerTier.SelectedValue;
-                    connection.Execute(@"
-                        INSERT INTO PartnerTiers (PartnerId, CountryId, Period, TierId)
-                        VALUES (@PartnerId, @CountryId, @Period, @TierId)
-                        ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET TierId = @TierId;",
-                        new { PartnerId = partner.Id, CountryId = country.Id, Period = period, TierId = tierId });
-                }
 
                 MessageBox.Show("Profile updated successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 
                 // Reload partner list and preserve selection
                 int selectedId = partner.Id;
                 LoadPartners();
-                LstPartners.SelectedValue = selectedId;
                 
-                // Refresh dashboard if it's open
+                // Reselect partner from the reloaded list
+                var reloadedPartner = allPartners.FirstOrDefault(p => p.Id == selectedId);
+                if (reloadedPartner != null)
+                {
+                    LstPartners.SelectedItem = reloadedPartner;
+                }
+
+                // Refresh dashboard/main UI
                 var mainWin = Window.GetWindow(this) as MainWindow;
                 mainWin?.RefreshAll();
             }
@@ -304,7 +218,7 @@ namespace PartnerRelationManager
         }
 
         // ==========================================
-        // SUB-ITEMS ACTIONS (Contacts, Products, Campaigns, Cases, Activities)
+        // SUB-ITEMS ACTIONS (Contacts, Activities, Documents)
         // ==========================================
         private void BtnAddContact_Click(object sender, RoutedEventArgs e)
         {
@@ -314,8 +228,13 @@ namespace PartnerRelationManager
             string name = TxtNewContactName.Text.Trim();
             string role = TxtNewContactRole.Text.Trim();
             string email = TxtNewContactEmail.Text.Trim();
+            string phone = TxtNewContactPhone.Text.Trim();
 
-            if (string.IsNullOrEmpty(name)) return;
+            if (string.IsNullOrEmpty(name))
+            {
+                MessageBox.Show("Contact Name is required.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             try
             {
@@ -323,48 +242,18 @@ namespace PartnerRelationManager
                 connection.Open();
                 connection.Execute(@"
                     INSERT INTO Contacts (PartnerId, Name, Role, Email, Phone, Notes)
-                    VALUES (@PartnerId, @Name, @Role, @Email, '', '');",
-                    new { PartnerId = partner.Id, Name = name, Role = role, Email = email });
+                    VALUES (@PartnerId, @Name, @Role, @Email, @Phone, '');",
+                    new { PartnerId = partner.Id, Name = name, Role = role, Email = email, Phone = phone });
 
                 TxtNewContactName.Clear();
                 TxtNewContactRole.Clear();
                 TxtNewContactEmail.Clear();
+                TxtNewContactPhone.Clear();
                 RefreshDataForSelectedPartner();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error adding contact: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void BtnAddProduct_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            if (partner == null) return;
-
-            string name = TxtNewProdName.Text.Trim();
-            string type = TxtNewProdType.Text.Trim();
-            string status = TxtNewProdStatus.Text.Trim();
-
-            if (string.IsNullOrEmpty(name)) return;
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO ProductsServices (PartnerId, Name, Type, Status, Replacement, Description)
-                    VALUES (@PartnerId, @Name, @Type, @Status, '', '');",
-                    new { PartnerId = partner.Id, Name = name, Type = type, Status = status });
-
-                TxtNewProdName.Clear();
-                TxtNewProdType.Clear();
-                TxtNewProdStatus.Clear();
-                RefreshDataForSelectedPartner();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error adding product: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -412,69 +301,6 @@ namespace PartnerRelationManager
             }
         }
 
-        private void BtnAddCampaign_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            if (partner == null) return;
-
-            string name = TxtNewCampName.Text.Trim();
-            string budgetStr = TxtNewCampBudget.Text.Trim();
-            string status = TxtNewCampStatus.Text.Trim();
-
-            if (string.IsNullOrEmpty(name)) return;
-            decimal.TryParse(budgetStr, out decimal budget);
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO MarketingCampaigns (PartnerId, Name, Type, FundingType, Budget, StartDate, Status, Comments)
-                    VALUES (@PartnerId, @Name, 'Standard', 'Joint', @Budget, NULL, @Status, '');",
-                    new { PartnerId = partner.Id, Name = name, Budget = budget, Status = status });
-
-                TxtNewCampName.Clear();
-                TxtNewCampBudget.Clear();
-                TxtNewCampStatus.Clear();
-                RefreshDataForSelectedPartner();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error adding campaign: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void BtnAddCase_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            if (partner == null) return;
-
-            string customer = TxtNewCaseCust.Text.Trim();
-            string owner = TxtNewCaseOwner.Text.Trim();
-            string status = TxtNewCaseStatus.Text.Trim();
-
-            if (string.IsNullOrEmpty(customer)) return;
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO CustomerCases (PartnerId, CustomerName, ApprovalStatus, IsExternal, Owner, ApprovedText, Comments)
-                    VALUES (@PartnerId, @CustomerName, @ApprovalStatus, 1, @Owner, '', '');",
-                    new { PartnerId = partner.Id, CustomerName = customer, ApprovalStatus = status, Owner = owner });
-
-                TxtNewCaseCust.Clear();
-                TxtNewCaseOwner.Clear();
-                TxtNewCaseStatus.Clear();
-                RefreshDataForSelectedPartner();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error adding customer case: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         // ==========================================
         // PARTNER CREATION
         // ==========================================
@@ -497,8 +323,8 @@ namespace PartnerRelationManager
                 }
 
                 int id = connection.QuerySingle<int>(@"
-                    INSERT INTO Partners (Name, InternalOwner, Category, StrategicImportance, Status, BusinessAreas)
-                    VALUES (@Name, 'August Eriksen', 'Preferred', 'Medium', 'Green', 'Hardware');
+                    INSERT INTO Partners (Name, InternalOwner, Category, StrategicImportance, Status, BusinessAreas, CountryCode)
+                    VALUES (@Name, 'August Eriksen', 'Preferred', 'Medium', 'Green', 'Hardware', 'NO');
                     SELECT last_insert_rowid();",
                     new { Name = name });
 
@@ -506,7 +332,11 @@ namespace PartnerRelationManager
                 LoadPartners();
                 
                 // Select new partner
-                LstPartners.SelectedValue = id;
+                var newPartner = allPartners.FirstOrDefault(p => p.Id == id);
+                if (newPartner != null)
+                {
+                    LstPartners.SelectedItem = newPartner;
+                }
             }
             catch (Exception ex)
             {
@@ -521,8 +351,6 @@ namespace PartnerRelationManager
         {
             var partner = LstPartners.SelectedItem as Partner;
             if (partner == null) return;
-            var country = CboCountry.SelectedItem as Country;
-            if (country == null) return;
             int period = GetSelectedPeriod();
 
             string assetType = TxtDocAssetType.Text.Trim();
@@ -539,20 +367,19 @@ namespace PartnerRelationManager
                 {
                     string sourcePath = openFileDialog.FileName;
                     string fileName = Path.GetFileName(sourcePath);
-                    string destPath = Path.Combine(DatabaseHelper.DocumentsFolder, $"{partner.Id}_{country.Code}_{period}_{fileName}");
+                    string destPath = Path.Combine(DatabaseHelper.DocumentsFolder, $"{partner.Id}_{period}_{fileName}");
 
-                    // Copy file to local srm storage
+                    // Copy file to local storage
                     File.Copy(sourcePath, destPath, overwrite: true);
 
                     using var connection = DatabaseHelper.GetConnection();
                     connection.Open();
                     connection.Execute(@"
-                        INSERT INTO Documents (PartnerId, CountryId, Period, FileName, FilePath, UploadDate, AssetType)
-                        VALUES (@PartnerId, @CountryId, @Period, @FileName, @FilePath, @UploadDate, @AssetType);",
+                        INSERT INTO Documents (PartnerId, Period, FileName, FilePath, UploadDate, AssetType)
+                        VALUES (@PartnerId, @Period, @FileName, @FilePath, @UploadDate, @AssetType);",
                         new
                         {
                             PartnerId = partner.Id,
-                            CountryId = country.Id,
                             Period = period,
                             FileName = fileName,
                             FilePath = destPath,
@@ -610,11 +437,11 @@ namespace PartnerRelationManager
         // ==========================================
         // KPI FORMS BINDING & PERSISTENCE
         // ==========================================
-        private void LoadCommercialKpis(System.Data.IDbConnection conn, int partnerId, int countryId, int period)
+        private void LoadCommercialKpis(System.Data.IDbConnection conn, int partnerId, int period)
         {
             var kpi = conn.QueryFirstOrDefault<KPI_Commercial>(
-                "SELECT * FROM KPI_Commercial WHERE PartnerId = @PartnerId AND CountryId = @CountryId AND Period = @Period",
-                new { PartnerId = partnerId, CountryId = countryId, Period = period });
+                "SELECT * FROM KPI_Commercial WHERE PartnerId = @PartnerId AND Period = @Period",
+                new { PartnerId = partnerId, Period = period });
 
             TxtArr.Text = kpi?.AnnualRecurringRevenue?.ToString() ?? "";
             TxtUpfront.Text = kpi?.UpfrontRevenue?.ToString() ?? "";
@@ -628,8 +455,7 @@ namespace PartnerRelationManager
         private void BtnSaveCommercial_Click(object sender, RoutedEventArgs e)
         {
             var partner = LstPartners.SelectedItem as Partner;
-            var country = CboCountry.SelectedItem as Country;
-            if (partner == null || country == null) return;
+            if (partner == null) return;
             int period = GetSelectedPeriod();
 
             decimal? arr = ParseDecimal(TxtArr.Text);
@@ -644,15 +470,14 @@ namespace PartnerRelationManager
                 using var connection = DatabaseHelper.GetConnection();
                 connection.Open();
                 connection.Execute(@"
-                    INSERT INTO KPI_Commercial (PartnerId, CountryId, Period, AnnualRecurringRevenue, UpfrontRevenue, OemServiceAttachRate, OnitioServiceAttachRate, LifecycleMargin, TargetMet, Comments)
-                    VALUES (@PartnerId, @CountryId, @Period, @AnnualRecurringRevenue, @UpfrontRevenue, @OemServiceAttachRate, @OnitioServiceAttachRate, @LifecycleMargin, @TargetMet, @Comments)
-                    ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET
+                    INSERT INTO KPI_Commercial (PartnerId, Period, AnnualRecurringRevenue, UpfrontRevenue, OemServiceAttachRate, OnitioServiceAttachRate, LifecycleMargin, TargetMet, Comments)
+                    VALUES (@PartnerId, @Period, @AnnualRecurringRevenue, @UpfrontRevenue, @OemServiceAttachRate, @OnitioServiceAttachRate, @LifecycleMargin, @TargetMet, @Comments)
+                    ON CONFLICT(PartnerId, Period) DO UPDATE SET
                         AnnualRecurringRevenue=@AnnualRecurringRevenue, UpfrontRevenue=@UpfrontRevenue, OemServiceAttachRate=@OemServiceAttachRate,
                         OnitioServiceAttachRate=@OnitioServiceAttachRate, LifecycleMargin=@LifecycleMargin, TargetMet=@TargetMet, Comments=@Comments;",
                     new
                     {
                         PartnerId = partner.Id,
-                        CountryId = country.Id,
                         Period = period,
                         AnnualRecurringRevenue = arr,
                         UpfrontRevenue = upfront,
@@ -671,82 +496,11 @@ namespace PartnerRelationManager
             }
         }
 
-        private void LoadComplianceKpis(System.Data.IDbConnection conn, int partnerId, int countryId, int period)
-        {
-            var kpi = conn.QueryFirstOrDefault<KPI_Compliance>(
-                "SELECT * FROM KPI_Compliance WHERE PartnerId = @PartnerId AND CountryId = @CountryId AND Period = @Period",
-                new { PartnerId = partnerId, CountryId = countryId, Period = period });
-
-            SetComboValue(CboCertsNeeded, kpi?.CertificationsNeeded);
-            TxtRequiredCerts.Text = kpi?.RequiredCertifications?.ToString() ?? "";
-            TxtCertsCovered.Text = kpi?.CertificationsCovered?.ToString() ?? "";
-            TxtCertsExp3.Text = kpi?.CertsExpiring3Months?.ToString() ?? "";
-            TxtCertsExp6.Text = kpi?.CertsExpiring6Months?.ToString() ?? "";
-            TxtCertsExp12.Text = kpi?.CertsExpiring12Months?.ToString() ?? "";
-            SetComboValue(CboComplianceStatus, kpi?.ProgramComplianceStatus);
-            SetComboValue(CboTierRisk, kpi?.TierRisk);
-            TxtComplianceComments.Text = kpi?.Comments ?? "";
-        }
-
-        private void BtnSaveCompliance_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            var country = CboCountry.SelectedItem as Country;
-            if (partner == null || country == null) return;
-            int period = GetSelectedPeriod();
-
-            string certsNeeded = (CboCertsNeeded.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-            int? req = ParseInt(TxtRequiredCerts.Text);
-            double? covered = ParseDouble(TxtCertsCovered.Text);
-            int? exp3 = ParseInt(TxtCertsExp3.Text);
-            int? exp6 = ParseInt(TxtCertsExp6.Text);
-            int? exp12 = ParseInt(TxtCertsExp12.Text);
-            string status = (CboComplianceStatus.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "OK";
-            string risk = (CboTierRisk.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO KPI_Compliance (PartnerId, CountryId, Period, CertificationsNeeded, RequiredCertifications, CertificationsCovered, CertsExpiring3Months, CertsExpiring6Months, CertsExpiring12Months, ProgramComplianceStatus, TierRisk, Comments)
-                    VALUES (@PartnerId, @CountryId, @Period, @CertificationsNeeded, @RequiredCertifications, @CertificationsCovered, @CertsExpiring3Months, @CertsExpiring6Months, @CertsExpiring12Months, @ProgramComplianceStatus, @TierRisk, @Comments)
-                    ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET
-                        CertificationsNeeded=@CertificationsNeeded, RequiredCertifications=@RequiredCertifications, CertificationsCovered=@CertificationsCovered,
-                        CertsExpiring3Months=@CertsExpiring3Months, CertsExpiring6Months=@CertsExpiring6Months, CertsExpiring12Months=@CertsExpiring12Months,
-                        ProgramComplianceStatus=@ProgramComplianceStatus, TierRisk=@TierRisk, Comments=@Comments;",
-                    new
-                    {
-                        PartnerId = partner.Id,
-                        CountryId = country.Id,
-                        Period = period,
-                        CertificationsNeeded = certsNeeded,
-                        RequiredCertifications = req,
-                        CertificationsCovered = covered,
-                        CertsExpiring3Months = exp3,
-                        CertsExpiring6Months = exp6,
-                        CertsExpiring12Months = exp12,
-                        ProgramComplianceStatus = status,
-                        TierRisk = risk,
-                        Comments = TxtComplianceComments.Text
-                    });
-
-                MessageBox.Show("Compliance KPIs saved!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                
-                var mainWin = Window.GetWindow(this) as MainWindow;
-                mainWin?.RefreshAll();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error saving Compliance KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void LoadProgramControlKpis(System.Data.IDbConnection conn, int partnerId, int countryId, int period)
+        private void LoadProgramControlKpis(System.Data.IDbConnection conn, int partnerId, int period)
         {
             var kpi = conn.QueryFirstOrDefault<KPI_ProgramControl>(
-                "SELECT * FROM KPI_ProgramControl WHERE PartnerId = @PartnerId AND CountryId = @CountryId AND Period = @Period",
-                new { PartnerId = partnerId, CountryId = countryId, Period = period });
+                "SELECT * FROM KPI_ProgramControl WHERE PartnerId = @PartnerId AND Period = @Period",
+                new { PartnerId = partnerId, Period = period });
 
             TxtProgOnitioRev.Text = kpi?.ReportedRevenueOnitio?.ToString() ?? "";
             TxtProgOemRev.Text = kpi?.ReportedRevenueOem?.ToString() ?? "";
@@ -760,8 +514,7 @@ namespace PartnerRelationManager
         private void BtnSaveProgramControl_Click(object sender, RoutedEventArgs e)
         {
             var partner = LstPartners.SelectedItem as Partner;
-            var country = CboCountry.SelectedItem as Country;
-            if (partner == null || country == null) return;
+            if (partner == null) return;
             int period = GetSelectedPeriod();
 
             decimal? onitio = ParseDecimal(TxtProgOnitioRev.Text);
@@ -776,15 +529,14 @@ namespace PartnerRelationManager
                 using var connection = DatabaseHelper.GetConnection();
                 connection.Open();
                 connection.Execute(@"
-                    INSERT INTO KPI_ProgramControl (PartnerId, CountryId, Period, ReportedRevenueOnitio, ReportedRevenueOem, Variance, RebateEligibility, TierProgress, RiskOfDowngrade, Comments)
-                    VALUES (@PartnerId, @CountryId, @Period, @ReportedRevenueOnitio, @ReportedRevenueOem, @Variance, @RebateEligibility, @TierProgress, @RiskOfDowngrade, @Comments)
-                    ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET
+                    INSERT INTO KPI_ProgramControl (PartnerId, Period, ReportedRevenueOnitio, ReportedRevenueOem, Variance, RebateEligibility, TierProgress, RiskOfDowngrade, Comments)
+                    VALUES (@PartnerId, @Period, @ReportedRevenueOnitio, @ReportedRevenueOem, @Variance, @RebateEligibility, @TierProgress, @RiskOfDowngrade, @Comments)
+                    ON CONFLICT(PartnerId, Period) DO UPDATE SET
                         ReportedRevenueOnitio=@ReportedRevenueOnitio, ReportedRevenueOem=@ReportedRevenueOem, Variance=@Variance,
                         RebateEligibility=@RebateEligibility, TierProgress=@TierProgress, RiskOfDowngrade=@RiskOfDowngrade, Comments=@Comments;",
                     new
                     {
                         PartnerId = partner.Id,
-                        CountryId = country.Id,
                         Period = period,
                         ReportedRevenueOnitio = onitio,
                         ReportedRevenueOem = oem,
@@ -803,174 +555,6 @@ namespace PartnerRelationManager
             catch (Exception ex)
             {
                 MessageBox.Show($"Error saving Program Control KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void LoadEsgKpis(System.Data.IDbConnection conn, int partnerId, int countryId, int period)
-        {
-            var kpi = conn.QueryFirstOrDefault<KPI_SustainabilityESG>(
-                "SELECT * FROM KPI_SustainabilityESG WHERE PartnerId = @PartnerId AND CountryId = @CountryId AND Period = @Period",
-                new { PartnerId = partnerId, CountryId = countryId, Period = period });
-
-            SetComboValue(CboEsgTakeBack, kpi?.TakeBackRecyclingProgram);
-            SetComboValue(CboEsgRefurb, kpi?.RefurbSecondLifeSupport);
-            SetComboValue(CboEsgEnvData, kpi?.EnvironmentalDataAvailable);
-            SetComboValue(CboEsgCompliance, kpi?.EsgComplianceStatus);
-            TxtEsgLogistics.Text = kpi?.LogisticsEmissionReduction ?? "";
-            SetComboValue(CboEsgQualMet, kpi?.SustainabilityQualificationMet);
-            TxtEsgComments.Text = kpi?.Comments ?? "";
-        }
-
-        private void BtnSaveEsg_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            var country = CboCountry.SelectedItem as Country;
-            if (partner == null || country == null) return;
-            int period = GetSelectedPeriod();
-
-            string takeback = (CboEsgTakeBack.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-            string refurb = (CboEsgRefurb.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-            string env = (CboEsgEnvData.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-            string compliance = (CboEsgCompliance.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "OK";
-            string qual = (CboEsgQualMet.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO KPI_SustainabilityESG (PartnerId, CountryId, Period, TakeBackRecyclingProgram, RefurbSecondLifeSupport, EnvironmentalDataAvailable, EsgComplianceStatus, LogisticsEmissionReduction, SustainabilityQualificationMet, Comments)
-                    VALUES (@PartnerId, @CountryId, @Period, @TakeBackRecyclingProgram, @RefurbSecondLifeSupport, @EnvironmentalDataAvailable, @EsgComplianceStatus, @LogisticsEmissionReduction, @SustainabilityQualificationMet, @Comments)
-                    ON CONFLICT(PartnerId, CountryId, Period) DO UPDATE SET
-                        TakeBackRecyclingProgram=@TakeBackRecyclingProgram, RefurbSecondLifeSupport=@RefurbSecondLifeSupport, EnvironmentalDataAvailable=@EnvironmentalDataAvailable,
-                        EsgComplianceStatus=@EsgComplianceStatus, LogisticsEmissionReduction=@LogisticsEmissionReduction, SustainabilityQualificationMet=@SustainabilityQualificationMet, Comments=@Comments;",
-                    new
-                    {
-                        PartnerId = partner.Id,
-                        CountryId = country.Id,
-                        Period = period,
-                        TakeBackRecyclingProgram = takeback,
-                        RefurbSecondLifeSupport = refurb,
-                        EnvironmentalDataAvailable = env,
-                        EsgComplianceStatus = compliance,
-                        LogisticsEmissionReduction = TxtEsgLogistics.Text,
-                        SustainabilityQualificationMet = qual,
-                        Comments = TxtEsgComments.Text
-                    });
-
-                MessageBox.Show("Sustainability ESG KPIs saved!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error saving Sustainability ESG KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void LoadOperationalKpis(System.Data.IDbConnection conn, int partnerId, int period)
-        {
-            var kpi = conn.QueryFirstOrDefault<KPI_Operational>(
-                "SELECT * FROM KPI_Operational WHERE PartnerId = @PartnerId AND Period = @Period",
-                new { PartnerId = partnerId, Period = period });
-
-            TxtOpDoaRate.Text = kpi?.DoaRate?.ToString() ?? "";
-            TxtOpRmaTime.Text = kpi?.AvgRmaLeadTime?.ToString() ?? "";
-            TxtOpDataQuality.Text = kpi?.AssetDataQuality?.ToString() ?? "";
-            TxtOpIssuesCount.Text = kpi?.OperationalIssuesCount?.ToString() ?? "";
-            SetComboValue(CboOpTargetMet, kpi?.TargetMet);
-            TxtOpComments.Text = kpi?.Comments ?? "";
-        }
-
-        private void BtnSaveOperational_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            if (partner == null) return;
-            int period = GetSelectedPeriod();
-
-            double? doa = ParseDouble(TxtOpDoaRate.Text);
-            double? rma = ParseDouble(TxtOpRmaTime.Text);
-            double? dataQuality = ParseDouble(TxtOpDataQuality.Text);
-            int? issues = ParseInt(TxtOpIssuesCount.Text);
-            string targetMet = (CboOpTargetMet.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO KPI_Operational (PartnerId, Period, DoaRate, AvgRmaLeadTime, AssetDataQuality, OperationalIssuesCount, TargetMet, Comments)
-                    VALUES (@PartnerId, @Period, @DoaRate, @AvgRmaLeadTime, @AssetDataQuality, @OperationalIssuesCount, @TargetMet, @Comments)
-                    ON CONFLICT(PartnerId, Period) DO UPDATE SET
-                        DoaRate=@DoaRate, AvgRmaLeadTime=@AvgRmaLeadTime, AssetDataQuality=@AssetDataQuality,
-                        OperationalIssuesCount=@OperationalIssuesCount, TargetMet=@TargetMet, Comments=@Comments;",
-                    new
-                    {
-                        PartnerId = partner.Id,
-                        Period = period,
-                        DoaRate = doa,
-                        AvgRmaLeadTime = rma,
-                        AssetDataQuality = dataQuality,
-                        OperationalIssuesCount = issues,
-                        TargetMet = targetMet,
-                        Comments = TxtOpComments.Text
-                    });
-
-                MessageBox.Show("Operational KPIs saved!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error saving Operational KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void LoadStrategicKpis(System.Data.IDbConnection conn, int partnerId, int period)
-        {
-            var kpi = conn.QueryFirstOrDefault<KPI_Strategic>(
-                "SELECT * FROM KPI_Strategic WHERE PartnerId = @PartnerId AND Period = @Period",
-                new { PartnerId = partnerId, Period = period });
-
-            SetComboValue(CboStratStd, kpi?.DegreeOfStandardization);
-            TxtStratDeployTime.Text = kpi?.AvgTimeToDeploy?.ToString() ?? "";
-            TxtStratImpactScore.Text = kpi?.CustomerImpactScore?.ToString() ?? "";
-            TxtStratFit.Text = kpi?.StrategicFitAssessment ?? "";
-            TxtStratComments.Text = kpi?.Comments ?? "";
-        }
-
-        private void BtnSaveStrategic_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            if (partner == null) return;
-            int period = GetSelectedPeriod();
-
-            string std = (CboStratStd.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Medium";
-            double? deploy = ParseDouble(TxtStratDeployTime.Text);
-            double? impact = ParseDouble(TxtStratImpactScore.Text);
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO KPI_Strategic (PartnerId, Period, DegreeOfStandardization, AvgTimeToDeploy, CustomerImpactScore, StrategicFitAssessment, Comments)
-                    VALUES (@PartnerId, @Period, @DegreeOfStandardization, @AvgTimeToDeploy, @CustomerImpactScore, @StrategicFitAssessment, @Comments)
-                    ON CONFLICT(PartnerId, Period) DO UPDATE SET
-                        DegreeOfStandardization=@DegreeOfStandardization, AvgTimeToDeploy=@AvgTimeToDeploy,
-                        CustomerImpactScore=@CustomerImpactScore, StrategicFitAssessment=@StrategicFitAssessment, Comments=@Comments;",
-                    new
-                    {
-                        PartnerId = partner.Id,
-                        Period = period,
-                        DegreeOfStandardization = std,
-                        AvgTimeToDeploy = deploy,
-                        CustomerImpactScore = impact,
-                        StrategicFitAssessment = TxtStratFit.Text,
-                        Comments = TxtStratComments.Text
-                    });
-
-                MessageBox.Show("Strategic KPIs saved!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error saving Strategic KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1010,13 +594,6 @@ namespace PartnerRelationManager
             if (string.IsNullOrWhiteSpace(text)) return null;
             string clean = text.Replace(",", ".").Trim();
             if (double.TryParse(clean, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double val)) return val;
-            return null;
-        }
-
-        private int? ParseInt(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return null;
-            if (int.TryParse(text, out int val)) return val;
             return null;
         }
     }

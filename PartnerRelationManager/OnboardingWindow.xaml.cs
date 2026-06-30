@@ -60,97 +60,47 @@ namespace PartnerRelationManager
                 {
                     try
                     {
-                        // Ensure Tiers exist (from seeding, but check and retrieve None tier id)
-                        var tierNone = connection.QueryFirstOrDefault<Tier>(
-                            "SELECT Id FROM Tiers WHERE Name = 'None'", transaction: transaction);
-                        int defaultTierId = tierNone?.Id ?? 1;
-
-                        // Insert selected countries and retrieve/ensure IDs
-                        var countryIds = new List<int>();
-                        foreach (var c in countries)
-                        {
-                            var existing = connection.QueryFirstOrDefault<Country>(
-                                "SELECT Id FROM Countries WHERE Code = @Code", new { Code = c.Code }, transaction: transaction);
-                            if (existing != null)
-                            {
-                                countryIds.Add(existing.Id);
-                            }
-                            else
-                            {
-                                int id = connection.QuerySingle<int>(
-                                    "INSERT INTO Countries (Name, Code) VALUES (@Name, @Code); SELECT last_insert_rowid();",
-                                    new { Name = c.Name, Code = c.Code }, transaction: transaction);
-                                countryIds.Add(id);
-                            }
-                        }
-
-                        // Insert selected partners and partner tiers
                         foreach (var pName in partners)
                         {
-                            var existingPartner = connection.QueryFirstOrDefault<Partner>(
-                                "SELECT Id FROM Partners WHERE Name = @Name", new { Name = pName }, transaction: transaction);
-
-                            int partnerId;
-                            if (existingPartner != null)
+                            foreach (var c in countries)
                             {
-                                partnerId = existingPartner.Id;
+                                string dbPartnerName = $"{pName} {c.Name}";
+
+                                var existingPartner = connection.QueryFirstOrDefault<Partner>(
+                                    "SELECT Id FROM Partners WHERE Name = @Name", 
+                                    new { Name = dbPartnerName }, 
+                                    transaction: transaction);
+
+                                int partnerId;
+                                if (existingPartner != null)
+                                {
+                                    partnerId = existingPartner.Id;
+                                }
+                                else
+                                {
+                                    partnerId = connection.QuerySingle<int>(@"
+                                        INSERT INTO Partners (Name, InternalOwner, Category, StrategicImportance, Status, BusinessAreas, CountryCode, CurrentTier, QbrFrequency)
+                                        VALUES (@Name, 'August Eriksen', 'OEM', 'Medium', 'Green', 'Hybrid', @CountryCode, 'None', '2-3 times a year');
+                                        SELECT last_insert_rowid();",
+                                        new { Name = dbPartnerName, CountryCode = c.Code }, 
+                                        transaction: transaction);
+                                }
+
+                                // Initialize empty KPI rows for 2025
+                                connection.Execute(@"
+                                    INSERT INTO KPI_Commercial (PartnerId, Period, TargetMet, Comments)
+                                    VALUES (@PartnerId, 2025, 'No', '')
+                                    ON CONFLICT(PartnerId, Period) DO NOTHING;",
+                                    new { PartnerId = partnerId }, 
+                                    transaction: transaction);
+
+                                connection.Execute(@"
+                                    INSERT INTO KPI_ProgramControl (PartnerId, Period, RebateEligibility, RiskOfDowngrade, Comments)
+                                    VALUES (@PartnerId, 2025, 'No', 'No', '')
+                                    ON CONFLICT(PartnerId, Period) DO NOTHING;",
+                                    new { PartnerId = partnerId }, 
+                                    transaction: transaction);
                             }
-                            else
-                            {
-                                partnerId = connection.QuerySingle<int>(@"
-                                    INSERT INTO Partners (Name, InternalOwner, Category, StrategicImportance, Status, BusinessAreas)
-                                    VALUES (@Name, 'August Eriksen', 'OEM', 'Medium', 'Green', 'Hybrid');
-                                    SELECT last_insert_rowid();",
-                                    new { Name = pName }, transaction: transaction);
-                            }
-
-                            // Initialize partner tier for 2025 across all selected countries
-                            foreach (int cId in countryIds)
-                            {
-                                connection.Execute(@"
-                                    INSERT INTO PartnerTiers (PartnerId, CountryId, Period, TierId)
-                                    VALUES (@PartnerId, @CountryId, 2025, @TierId)
-                                    ON CONFLICT(PartnerId, CountryId, Period) DO NOTHING;",
-                                    new { PartnerId = partnerId, CountryId = cId, TierId = defaultTierId }, transaction: transaction);
-
-                                // Initialize empty KPI rows so they exist and can be easily edited
-                                connection.Execute(@"
-                                    INSERT INTO KPI_Commercial (PartnerId, CountryId, Period, TargetMet, Comments)
-                                    VALUES (@PartnerId, @CountryId, 2025, 'No', '')
-                                    ON CONFLICT(PartnerId, CountryId, Period) DO NOTHING;",
-                                    new { PartnerId = partnerId, CountryId = cId }, transaction: transaction);
-
-                                connection.Execute(@"
-                                    INSERT INTO KPI_Compliance (PartnerId, CountryId, Period, CertificationsNeeded, ProgramComplianceStatus, TierRisk, Comments)
-                                    VALUES (@PartnerId, @CountryId, 2025, 'Yes', 'OK', 'No', '')
-                                    ON CONFLICT(PartnerId, CountryId, Period) DO NOTHING;",
-                                    new { PartnerId = partnerId, CountryId = cId }, transaction: transaction);
-
-                                connection.Execute(@"
-                                    INSERT INTO KPI_ProgramControl (PartnerId, CountryId, Period, RebateEligibility, RiskOfDowngrade, Comments)
-                                    VALUES (@PartnerId, @CountryId, 2025, 'No', 'No', '')
-                                    ON CONFLICT(PartnerId, CountryId, Period) DO NOTHING;",
-                                    new { PartnerId = partnerId, CountryId = cId }, transaction: transaction);
-
-                                connection.Execute(@"
-                                    INSERT INTO KPI_SustainabilityESG (PartnerId, CountryId, Period, TakeBackRecyclingProgram, RefurbSecondLifeSupport, EnvironmentalDataAvailable, EsgComplianceStatus, LogisticsEmissionReduction, SustainabilityQualificationMet, Comments)
-                                    VALUES (@PartnerId, @CountryId, 2025, 'No', 'No', 'No', 'OK', 'No', 'No', '')
-                                    ON CONFLICT(PartnerId, CountryId, Period) DO NOTHING;",
-                                    new { PartnerId = partnerId, CountryId = cId }, transaction: transaction);
-                            }
-
-                            // Initialize partner-wide KPIs for 2025
-                            connection.Execute(@"
-                                INSERT INTO KPI_Operational (PartnerId, Period, TargetMet, Comments)
-                                VALUES (@PartnerId, 2025, 'No', '')
-                                ON CONFLICT(PartnerId, Period) DO NOTHING;",
-                                new { PartnerId = partnerId }, transaction: transaction);
-
-                            connection.Execute(@"
-                                INSERT INTO KPI_Strategic (PartnerId, Period, DegreeOfStandardization, StrategicFitAssessment, Comments)
-                                VALUES (@PartnerId, 2025, 'Medium', '', '')
-                                ON CONFLICT(PartnerId, Period) DO NOTHING;",
-                                new { PartnerId = partnerId }, transaction: transaction);
                         }
 
                         transaction.Commit();
