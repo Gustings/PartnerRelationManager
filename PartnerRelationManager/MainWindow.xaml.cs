@@ -14,18 +14,6 @@ namespace PartnerRelationManager
         {
             InitializeComponent();
             
-            // Check if database needs onboarding setup
-            if (DatabaseHelper.IsDatabaseEmpty())
-            {
-                var onboarding = new OnboardingWindow();
-                bool? result = onboarding.ShowDialog();
-                if (result != true)
-                {
-                    Application.Current.Shutdown();
-                    return;
-                }
-            }
-
             // Initialize views
             dashboardView = new DashboardView();
             partnersView = new PartnersView();
@@ -42,6 +30,19 @@ namespace PartnerRelationManager
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            // Check if database needs onboarding setup
+            if (DatabaseHelper.IsDatabaseEmpty())
+            {
+                var onboarding = new OnboardingWindow();
+                onboarding.Owner = this;
+                bool? result = onboarding.ShowDialog();
+                if (result != true)
+                {
+                    Application.Current.Shutdown();
+                    return;
+                }
+            }
+
             RefreshAll();
         }
 
