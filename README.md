@@ -37,25 +37,13 @@ Designed with **WPF-UI** for native Windows 11 Fluent styling (supporting dark/l
 - **Excel Exchange**: `ClosedXML`
 - **Installer**: Inno Setup 6
 
----
+## 🚀 Installation & Auto-Updates
 
-## 🚀 Building & Packaging
-
-An automated build pipeline script is provided in the root: `build_and_sign.ps1`.
-
-### Prerequisites
-- .NET 9.0 SDK
-- Inno Setup 6 installed at `C:\Users\augus\AppData\Local\Programs\Inno Setup 6\ISCC.exe`
-- Windows SDK `signtool.exe` (automatically located by the script)
-
-### Running the Build
-Execute the script in PowerShell:
-```powershell
-.\build_and_sign.ps1
-```
-The script will:
-1. Create/locate a self-signed code signing certificate (`CN=Partner Relation Manager Local Testing`).
-2. Clean outputs and publish the self-contained app binaries for `win-x64`.
-3. Digitally sign the application executable.
-4. Compile the setup installer (`setup.iss`) using Inno Setup.
-5. Digitally sign the output installer package: `..\Installers\PartnerRelationManagerSetup-1.0.0.exe`.
+1. **Download & Install**:
+   - Go to the [Releases](https://github.com/Gustings/PartnerRelationManager/releases) page on GitHub.
+   - Download the latest `PartnerRelationManagerSetup-*.exe` installer asset.
+   - Run the installer. It will install the application locally under your user profile without requiring administrator privileges.
+2. **Automatic Updates**:
+   - Every time the application boots up, it automatically checks the GitHub repository in the background for a newer release.
+   - If an update is found, it will prompt you with the release notes and offer to download/install it silently.
+   - If accepted, the updater will download and apply the update automatically, then restart the application.
