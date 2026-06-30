@@ -1,0 +1,61 @@
+<Window x:Class="PartnerRelationManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:local="clr-namespace:PartnerRelationManager"
+        Title="SRM - Partner Relation Manager" 
+        Height="780" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="{ui:ThemeResource ApplicationPageBackgroundBrush}">
+    
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- LEFT SIDEBAR: Navigation Menu -->
+        <Border Grid.Column="0" Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="#FFE5E5E5" BorderThickness="0,0,1,0">
+            <Grid Margin="12,20,12,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Sidebar Header -->
+                <StackPanel Grid.Row="0" Margin="12,0,0,24">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Symbol="Organization24" FontSize="28" Foreground="{ui:ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,8,0"/>
+                        <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="SRM Desktop" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Partner Relations Management" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <!-- Navigation List -->
+                <StackPanel Grid.Row="1" >
+                    <ui:Button x:Name="BtnNavDashboard" Content="Dashboard" Icon="Home24" Click="BtnNavDashboard_Click" 
+                               HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,10,12,10" Appearance="Primary"/>
+                    
+                    <ui:Button x:Name="BtnNavPartners" Content="Partners Profile &amp; KPIs" Icon="People24" Click="BtnNavPartners_Click" 
+                               HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,10,12,10" Appearance="Secondary"/>
+                    
+                    <ui:Button x:Name="BtnNavSettings" Content="Settings &amp; Excel Tools" Icon="Settings24" Click="BtnNavSettings_Click" 
+                               HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="12,10,12,10" Appearance="Secondary"/>
+                </StackPanel>
+
+                <!-- Database status info -->
+                <StackPanel Grid.Row="2" Margin="12,0,0,0" >
+                    <Border Height="1" Background="#FFE5E5E5" Margin="0,0,0,12"/>
+                    <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Database Connected" FontWeight="SemiBold" Foreground="Green"/>
+                    <TextBlock x:Name="TxtDbPath" Style="{DynamicResource CaptionTextBlockStyle}" Text="srm.db" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- RIGHT SIDE: Content Area -->
+        <Border Grid.Column="1">
+            <ContentControl x:Name="MainContent"/>
+        </Border>
+    </Grid>
+</Window>

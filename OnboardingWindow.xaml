@@ -1,0 +1,81 @@
+<Window x:Class="PartnerRelationManager.OnboardingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Onboarding - Setup Partner Relation Manager"
+        Height="480" Width="640"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{ui:ThemeResource ApplicationPageBackgroundBrush}">
+    
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Style="{DynamicResource TitleTextBlockStyle}" Text="Welcome to SRM Partner Relation Manager" Margin="0,0,0,4"/>
+            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" 
+                          Text="Initialize your workspace by selecting the partners and countries you manage." TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Content columns -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Partners Box -->
+            <ui:Card Grid.Column="0" Margin="0,0,10,0" Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Initial Partners" Margin="0,0,0,12"/>
+                    
+                    <StackPanel Grid.Row="1" VerticalAlignment="Top" >
+                        <CheckBox x:Name="ChkHp" Content="HP" IsChecked="True" />
+                        <CheckBox x:Name="ChkLenovo" Content="Lenovo" IsChecked="True" />
+                        <CheckBox x:Name="ChkDell" Content="Dell" IsChecked="True" />
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Row="2" Margin="0,12,0,0" >
+                        <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Add Custom Partner:"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox x:Name="TxtCustomPartner" PlaceholderText="e.g. Cisco" VerticalAlignment="Center"/>
+                            <ui:Button Grid.Column="1" Content="Add" Click="BtnAddCustomPartner_Click" Margin="4,0,0,0" Appearance="Secondary"/>
+                        </Grid>
+                        <ListBox x:Name="LstCustomPartners" Height="60" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </ui:Card>
+
+            <!-- Countries Box -->
+            <ui:Card Grid.Column="1" Margin="10,0,0,0" Padding="16">
+                <StackPanel >
+                    <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Initial Countries" Margin="0,0,0,12"/>
+                    <CheckBox x:Name="ChkNo" Content="Norway (NO)" IsChecked="True" />
+                    <CheckBox x:Name="ChkSe" Content="Sweden (SE)" IsChecked="True" />
+                    <CheckBox x:Name="ChkDk" Content="Denmark (DK)" IsChecked="True" />
+                    <CheckBox x:Name="ChkFi" Content="Finland (FI)" IsChecked="True" />
+                </StackPanel>
+            </ui:Card>
+        </Grid>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <ui:Button x:Name="BtnSetup" Content="Initialize SRM Workspace" Click="BtnSetup_Click" Appearance="Primary" Padding="16,8,16,8"/>
+        </StackPanel>
+    </Grid>
+</Window>

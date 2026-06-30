@@ -1,0 +1,23 @@
+# Byte-code / Binaries
+bin/
+obj/
+
+# Local databases
+*.db
+*.db-journal
+*.db-wal
+
+# User-specific files
+*.user
+*.suo
+*.userossc
+.vs/
+.idea/
+*.lnk
+
+# Installers
+PartnerRelationManagerSetup-*.exe
+
+# Private Assets
+SRM pitch.docx
+Onitio_One_Partner_KPI_Tracker.xlsx
