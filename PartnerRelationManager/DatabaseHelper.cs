@@ -130,6 +130,43 @@ namespace PartnerRelationManager.Services
                     PRIMARY KEY (PartnerId, Period)
                 );
             ");
+
+            // 7. AppSettings Table
+            connection.Execute(@"
+                CREATE TABLE IF NOT EXISTS AppSettings (
+                    Key TEXT PRIMARY KEY,
+                    Value TEXT
+                );
+            ");
+
+            // Seed LocalCountry if not exists
+            var hasLocalCountry = connection.ExecuteScalar<int>("SELECT COUNT(*) FROM AppSettings WHERE Key = 'LocalCountry';");
+            if (hasLocalCountry == 0)
+            {
+                connection.Execute("INSERT INTO AppSettings (Key, Value) VALUES ('LocalCountry', 'NO');");
+            }
+        }
+
+        public static string GetSetting(string key, string defaultValue = "")
+        {
+            try
+            {
+                using var connection = GetConnection();
+                return connection.QueryFirstOrDefault<string>(
+                    "SELECT Value FROM AppSettings WHERE Key = @Key", new { Key = key }) ?? defaultValue;
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
+
+        public static void SaveSetting(string key, string value)
+        {
+            using var connection = GetConnection();
+            connection.Execute(@"
+                INSERT INTO AppSettings (Key, Value) VALUES (@Key, @Value)
+                ON CONFLICT(Key) DO UPDATE SET Value = @Value;", new { Key = key, Value = value });
         }
 
         public static bool IsDatabaseEmpty()
@@ -159,6 +196,7 @@ namespace PartnerRelationManager.Services
                 connection.Execute("DROP TABLE IF EXISTS Documents;", transaction: transaction);
                 connection.Execute("DROP TABLE IF EXISTS KPI_Commercial;", transaction: transaction);
                 connection.Execute("DROP TABLE IF EXISTS KPI_ProgramControl;", transaction: transaction);
+                connection.Execute("DROP TABLE IF EXISTS AppSettings;", transaction: transaction);
                 transaction.Commit();
             }
             catch

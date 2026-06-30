@@ -36,6 +36,12 @@ namespace PartnerRelationManager
             RefreshDataForSelectedPartner();
         }
 
+        private Partner? GetSelectedPartner()
+        {
+            var selectedItem = TreePartners.SelectedItem as PartnerTreeItem;
+            return selectedItem?.PartnerRef;
+        }
+
         private void LoadPartners()
         {
             try
@@ -51,19 +57,64 @@ namespace PartnerRelationManager
             }
         }
 
+        private string GetOemBaseName(Partner p)
+        {
+            string name = p.Name;
+            string[] suffixes = { " Norway", " Sweden", " Denmark", " Finland", " NO", " SE", " DK", " FI" };
+            foreach (var suffix in suffixes)
+            {
+                if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return name.Substring(0, name.Length - suffix.Length).Trim();
+                }
+            }
+            return name;
+        }
+
+        private string GetStatusColorHex(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status)) return "#FFAAAAAA"; // Gray
+            switch (status.Trim().ToUpperInvariant())
+            {
+                case "GREEN": return "#FF26BC74";
+                case "AMBER":
+                case "ORANGE": return "#FFF59B23";
+                case "RED": return "#FFE81123";
+                default: return "#FFAAAAAA";
+            }
+        }
+
         private void FilterPartnersList()
         {
             string filterText = TxtSearchPartner.Text.Trim();
-            if (string.IsNullOrEmpty(filterText))
+            List<Partner> filtered = allPartners;
+            if (!string.IsNullOrEmpty(filterText))
             {
-                LstPartners.ItemsSource = allPartners;
-            }
-            else
-            {
-                LstPartners.ItemsSource = allPartners
+                filtered = allPartners
                     .Where(p => p.Name.Contains(filterText, StringComparison.OrdinalIgnoreCase))
                     .ToList();
             }
+
+            // Build hierarchical tree
+            var treeItems = new List<PartnerTreeItem>();
+            var groups = filtered.GroupBy(p => GetOemBaseName(p));
+            foreach (var g in groups)
+            {
+                var folder = new PartnerTreeItem
+                {
+                    DisplayText = g.Key,
+                    PartnerRef = null,
+                    Children = g.Select(p => new PartnerTreeItem
+                    {
+                        DisplayText = string.IsNullOrEmpty(p.CountryCode) ? p.Name : p.CountryCode.ToUpperInvariant(),
+                        PartnerRef = p,
+                        StatusColor = GetStatusColorHex(p.Status)
+                    }).ToList()
+                };
+                treeItems.Add(folder);
+            }
+
+            TreePartners.ItemsSource = treeItems;
         }
 
         private void TxtSearchPartner_TextChanged(object sender, TextChangedEventArgs e)
@@ -71,16 +122,17 @@ namespace PartnerRelationManager
             FilterPartnersList();
         }
 
-        private void LstPartners_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void TreePartners_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            var partner = LstPartners.SelectedItem as Partner;
-            if (partner == null)
+            var selectedItem = TreePartners.SelectedItem as PartnerTreeItem;
+            if (selectedItem == null || selectedItem.PartnerRef == null)
             {
                 CardNoSelection.Visibility = Visibility.Visible;
                 GridPartnerDetails.Visibility = Visibility.Collapsed;
                 return;
             }
 
+            var partner = selectedItem.PartnerRef;
             CardNoSelection.Visibility = Visibility.Collapsed;
             GridPartnerDetails.Visibility = Visibility.Visible;
 
@@ -110,7 +162,7 @@ namespace PartnerRelationManager
 
         private void RefreshDataForSelectedPartner()
         {
-            var partner = LstPartners.SelectedItem as Partner;
+            var partner = GetSelectedPartner();
             if (partner == null) return;
 
             int period = GetSelectedPeriod();
@@ -133,10 +185,6 @@ namespace PartnerRelationManager
                     "SELECT * FROM Documents WHERE PartnerId = @PartnerId AND Period = @Period",
                     new { PartnerId = partner.Id, Period = period }).ToList();
                 LstDocuments.ItemsSource = docs;
-
-                // 4. KPIs loading
-                LoadCommercialKpis(connection, partner.Id, period);
-                LoadProgramControlKpis(connection, partner.Id, period);
             }
             catch (Exception ex)
             {
@@ -156,7 +204,7 @@ namespace PartnerRelationManager
         // ==========================================
         private void BtnSaveProfile_Click(object sender, RoutedEventArgs e)
         {
-            var partner = LstPartners.SelectedItem as Partner;
+            var partner = GetSelectedPartner();
             if (partner == null) return;
 
             try
@@ -200,11 +248,12 @@ namespace PartnerRelationManager
                 int selectedId = partner.Id;
                 LoadPartners();
                 
-                // Reselect partner from the reloaded list
-                var reloadedPartner = allPartners.FirstOrDefault(p => p.Id == selectedId);
-                if (reloadedPartner != null)
+                // Reselect partner from the reloaded list in tree
+                var targetItem = FindTreeItem(TreePartners.ItemsSource as IEnumerable<PartnerTreeItem>, selectedId);
+                if (targetItem != null)
                 {
-                    LstPartners.SelectedItem = reloadedPartner;
+                    targetItem.IsSelected = true;
+                    ExpandParent(TreePartners.ItemsSource as IEnumerable<PartnerTreeItem>, targetItem);
                 }
 
                 // Refresh dashboard/main UI
@@ -222,7 +271,7 @@ namespace PartnerRelationManager
         // ==========================================
         private void BtnAddContact_Click(object sender, RoutedEventArgs e)
         {
-            var partner = LstPartners.SelectedItem as Partner;
+            var partner = GetSelectedPartner();
             if (partner == null) return;
 
             string name = TxtNewContactName.Text.Trim();
@@ -259,7 +308,7 @@ namespace PartnerRelationManager
 
         private void BtnAddActivity_Click(object sender, RoutedEventArgs e)
         {
-            var partner = LstPartners.SelectedItem as Partner;
+            var partner = GetSelectedPartner();
             if (partner == null) return;
 
             string title = TxtNewActTitle.Text.Trim();
@@ -331,11 +380,12 @@ namespace PartnerRelationManager
                 TxtNewPartnerName.Clear();
                 LoadPartners();
                 
-                // Select new partner
-                var newPartner = allPartners.FirstOrDefault(p => p.Id == id);
-                if (newPartner != null)
+                // Select new partner in tree
+                var targetItem = FindTreeItem(TreePartners.ItemsSource as IEnumerable<PartnerTreeItem>, id);
+                if (targetItem != null)
                 {
-                    LstPartners.SelectedItem = newPartner;
+                    targetItem.IsSelected = true;
+                    ExpandParent(TreePartners.ItemsSource as IEnumerable<PartnerTreeItem>, targetItem);
                 }
             }
             catch (Exception ex)
@@ -349,7 +399,7 @@ namespace PartnerRelationManager
         // ==========================================
         private void BtnUploadDoc_Click(object sender, RoutedEventArgs e)
         {
-            var partner = LstPartners.SelectedItem as Partner;
+            var partner = GetSelectedPartner();
             if (partner == null) return;
             int period = GetSelectedPeriod();
 
@@ -435,166 +485,83 @@ namespace PartnerRelationManager
         }
 
         // ==========================================
-        // KPI FORMS BINDING & PERSISTENCE
-        // ==========================================
-        private void LoadCommercialKpis(System.Data.IDbConnection conn, int partnerId, int period)
-        {
-            var kpi = conn.QueryFirstOrDefault<KPI_Commercial>(
-                "SELECT * FROM KPI_Commercial WHERE PartnerId = @PartnerId AND Period = @Period",
-                new { PartnerId = partnerId, Period = period });
-
-            TxtArr.Text = kpi?.AnnualRecurringRevenue?.ToString() ?? "";
-            TxtUpfront.Text = kpi?.UpfrontRevenue?.ToString() ?? "";
-            TxtOemAttach.Text = kpi?.OemServiceAttachRate?.ToString() ?? "";
-            TxtOnitioAttach.Text = kpi?.OnitioServiceAttachRate?.ToString() ?? "";
-            TxtLifecycleMargin.Text = kpi?.LifecycleMargin?.ToString() ?? "";
-            SetComboValue(CboCommercialTargetMet, kpi?.TargetMet);
-            TxtCommercialComments.Text = kpi?.Comments ?? "";
-        }
-
-        private void BtnSaveCommercial_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            if (partner == null) return;
-            int period = GetSelectedPeriod();
-
-            decimal? arr = ParseDecimal(TxtArr.Text);
-            decimal? upfront = ParseDecimal(TxtUpfront.Text);
-            double? oem = ParseDouble(TxtOemAttach.Text);
-            double? onitio = ParseDouble(TxtOnitioAttach.Text);
-            double? margin = ParseDouble(TxtLifecycleMargin.Text);
-            string targetMet = (CboCommercialTargetMet.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO KPI_Commercial (PartnerId, Period, AnnualRecurringRevenue, UpfrontRevenue, OemServiceAttachRate, OnitioServiceAttachRate, LifecycleMargin, TargetMet, Comments)
-                    VALUES (@PartnerId, @Period, @AnnualRecurringRevenue, @UpfrontRevenue, @OemServiceAttachRate, @OnitioServiceAttachRate, @LifecycleMargin, @TargetMet, @Comments)
-                    ON CONFLICT(PartnerId, Period) DO UPDATE SET
-                        AnnualRecurringRevenue=@AnnualRecurringRevenue, UpfrontRevenue=@UpfrontRevenue, OemServiceAttachRate=@OemServiceAttachRate,
-                        OnitioServiceAttachRate=@OnitioServiceAttachRate, LifecycleMargin=@LifecycleMargin, TargetMet=@TargetMet, Comments=@Comments;",
-                    new
-                    {
-                        PartnerId = partner.Id,
-                        Period = period,
-                        AnnualRecurringRevenue = arr,
-                        UpfrontRevenue = upfront,
-                        OemServiceAttachRate = oem,
-                        OnitioServiceAttachRate = onitio,
-                        LifecycleMargin = margin,
-                        TargetMet = targetMet,
-                        Comments = TxtCommercialComments.Text
-                    });
-
-                MessageBox.Show("Commercial KPIs saved!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error saving Commercial KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void LoadProgramControlKpis(System.Data.IDbConnection conn, int partnerId, int period)
-        {
-            var kpi = conn.QueryFirstOrDefault<KPI_ProgramControl>(
-                "SELECT * FROM KPI_ProgramControl WHERE PartnerId = @PartnerId AND Period = @Period",
-                new { PartnerId = partnerId, Period = period });
-
-            TxtProgOnitioRev.Text = kpi?.ReportedRevenueOnitio?.ToString() ?? "";
-            TxtProgOemRev.Text = kpi?.ReportedRevenueOem?.ToString() ?? "";
-            TxtProgVariance.Text = kpi?.Variance?.ToString() ?? "";
-            SetComboValue(CboProgRebate, kpi?.RebateEligibility);
-            TxtProgTierProgress.Text = kpi?.TierProgress?.ToString() ?? "";
-            SetComboValue(CboProgRisk, kpi?.RiskOfDowngrade);
-            TxtProgComments.Text = kpi?.Comments ?? "";
-        }
-
-        private void BtnSaveProgramControl_Click(object sender, RoutedEventArgs e)
-        {
-            var partner = LstPartners.SelectedItem as Partner;
-            if (partner == null) return;
-            int period = GetSelectedPeriod();
-
-            decimal? onitio = ParseDecimal(TxtProgOnitioRev.Text);
-            decimal? oem = ParseDecimal(TxtProgOemRev.Text);
-            double? varVal = ParseDouble(TxtProgVariance.Text);
-            string rebate = (CboProgRebate.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-            double? progress = ParseDouble(TxtProgTierProgress.Text);
-            string risk = (CboProgRisk.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "No";
-
-            try
-            {
-                using var connection = DatabaseHelper.GetConnection();
-                connection.Open();
-                connection.Execute(@"
-                    INSERT INTO KPI_ProgramControl (PartnerId, Period, ReportedRevenueOnitio, ReportedRevenueOem, Variance, RebateEligibility, TierProgress, RiskOfDowngrade, Comments)
-                    VALUES (@PartnerId, @Period, @ReportedRevenueOnitio, @ReportedRevenueOem, @Variance, @RebateEligibility, @TierProgress, @RiskOfDowngrade, @Comments)
-                    ON CONFLICT(PartnerId, Period) DO UPDATE SET
-                        ReportedRevenueOnitio=@ReportedRevenueOnitio, ReportedRevenueOem=@ReportedRevenueOem, Variance=@Variance,
-                        RebateEligibility=@RebateEligibility, TierProgress=@TierProgress, RiskOfDowngrade=@RiskOfDowngrade, Comments=@Comments;",
-                    new
-                    {
-                        PartnerId = partner.Id,
-                        Period = period,
-                        ReportedRevenueOnitio = onitio,
-                        ReportedRevenueOem = oem,
-                        Variance = varVal,
-                        RebateEligibility = rebate,
-                        TierProgress = progress,
-                        RiskOfDowngrade = risk,
-                        Comments = TxtProgComments.Text
-                    });
-
-                MessageBox.Show("Program Control KPIs saved!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                
-                var mainWin = Window.GetWindow(this) as MainWindow;
-                mainWin?.RefreshAll();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error saving Program Control KPIs: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        // ==========================================
         // HELPERS
         // ==========================================
-        private void SetComboValue(ComboBox cbo, string val)
+        private PartnerTreeItem? FindTreeItem(IEnumerable<PartnerTreeItem>? items, int partnerId)
         {
-            if (val == null)
+            if (items == null) return null;
+            foreach (var item in items)
             {
-                cbo.SelectedIndex = -1;
-                return;
+                if (item.PartnerRef?.Id == partnerId) return item;
+                var child = FindTreeItem(item.Children, partnerId);
+                if (child != null) return child;
             }
+            return null;
+        }
 
-            for (int i = 0; i < cbo.Items.Count; i++)
+        private bool ExpandParent(IEnumerable<PartnerTreeItem>? items, PartnerTreeItem target)
+        {
+            if (items == null) return false;
+            foreach (var item in items)
             {
-                var item = cbo.Items[i] as ComboBoxItem;
-                if (item != null && string.Equals(item.Content?.ToString(), val, StringComparison.OrdinalIgnoreCase))
+                if (item.Children.Contains(target))
                 {
-                    cbo.SelectedIndex = i;
-                    return;
+                    item.IsExpanded = true;
+                    return true;
+                }
+                if (ExpandParent(item.Children, target))
+                {
+                    item.IsExpanded = true;
+                    return true;
                 }
             }
-            cbo.SelectedIndex = -1;
+            return false;
+        }
+    }
+
+    public class PartnerTreeItem : System.ComponentModel.INotifyPropertyChanged
+    {
+        private bool _isSelected;
+        private bool _isExpanded;
+
+        public string DisplayText { get; set; } = string.Empty;
+        public string StatusColor { get; set; } = "#FFAAAAAA";
+        public Partner? PartnerRef { get; set; }
+        public List<PartnerTreeItem> Children { get; set; } = new();
+
+        public Visibility FolderIconVisibility => PartnerRef == null ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility StatusDotVisibility => PartnerRef != null ? Visibility.Visible : Visibility.Collapsed;
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected != value)
+                {
+                    _isSelected = value;
+                    OnPropertyChanged(nameof(IsSelected));
+                }
+            }
         }
 
-        private decimal? ParseDecimal(string text)
+        public bool IsExpanded
         {
-            if (string.IsNullOrWhiteSpace(text)) return null;
-            string clean = text.Replace(",", ".").Trim();
-            if (decimal.TryParse(clean, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal val)) return val;
-            return null;
+            get => _isExpanded;
+            set
+            {
+                if (_isExpanded != value)
+                {
+                    _isExpanded = value;
+                    OnPropertyChanged(nameof(IsExpanded));
+                }
+            }
         }
 
-        private double? ParseDouble(string text)
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged(string name)
         {
-            if (string.IsNullOrWhiteSpace(text)) return null;
-            string clean = text.Replace(",", ".").Trim();
-            if (double.TryParse(clean, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double val)) return val;
-            return null;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
         }
     }
 }

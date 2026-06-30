@@ -9,9 +9,40 @@ namespace PartnerRelationManager
 {
     public partial class SettingsView : UserControl
     {
+        private bool _isInitializing = true;
+
         public SettingsView()
         {
             InitializeComponent();
+            LoadLocalCountry();
+        }
+
+        private void LoadLocalCountry()
+        {
+            _isInitializing = true;
+            string localCountry = DatabaseHelper.GetSetting("LocalCountry", "NO");
+            foreach (ComboBoxItem item in CboLocalCountry.Items)
+            {
+                if (item.Content.ToString() == localCountry)
+                {
+                    CboLocalCountry.SelectedItem = item;
+                    break;
+                }
+            }
+            _isInitializing = false;
+        }
+
+        private void CboLocalCountry_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInitializing) return;
+            if (CboLocalCountry.SelectedItem is ComboBoxItem item)
+            {
+                string selectedCountry = item.Content?.ToString() ?? "NO";
+                DatabaseHelper.SaveSetting("LocalCountry", selectedCountry);
+                
+                var mainWindow = Window.GetWindow(this) as MainWindow;
+                mainWindow?.RefreshAll();
+            }
         }
 
         private void BtnImportExcel_Click(object sender, RoutedEventArgs e)

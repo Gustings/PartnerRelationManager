@@ -30,15 +30,15 @@
             </Grid.ColumnDefinitions>
 
             <!-- Total Partners -->
-            <ui:Card Grid.Column="0" Margin="0,0,8,0" Padding="12">
+            <ui:Card x:Name="CardTotalPartners" Grid.Column="0" Margin="0,0,8,0" Padding="12">
                 <StackPanel>
                     <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Total Partners" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
                     <TextBlock x:Name="TxtTotalPartners" Style="{DynamicResource TitleTextBlockStyle}" Text="0" Margin="0,4,0,0" FontWeight="SemiBold"/>
                 </StackPanel>
             </ui:Card>
 
-            <!-- Total Countries -->
-            <ui:Card Grid.Column="1" Margin="8,0,8,0" Padding="12">
+            <!-- Active Countries -->
+            <ui:Card x:Name="CardActiveCountries" Grid.Column="1" Margin="8,0,8,0" Padding="12">
                 <StackPanel>
                     <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Text="Active Countries" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
                     <TextBlock x:Name="TxtTotalCountries" Style="{DynamicResource TitleTextBlockStyle}" Text="0" Margin="0,4,0,0" FontWeight="SemiBold"/>
@@ -69,17 +69,66 @@
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Warnings / Risks list -->
+            <!-- Status Matrix & Warnings / Risks list -->
             <ui:Card Grid.Column="0" Margin="0,0,8,0" Padding="16">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/> <!-- Title Matrix -->
+                        <RowDefinition Height="Auto"/> <!-- Matrix Grid -->
+                        <RowDefinition Height="Auto"/> <!-- Warnings Title -->
+                        <RowDefinition Height="*"/>    <!-- Warnings List -->
                     </Grid.RowDefinitions>
                     
-                    <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Compliance Warnings &amp; Risks" Margin="0,0,0,12"/>
+                    <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Partner Status Matrix" Margin="0,0,0,8"/>
                     
-                    <ListView x:Name="LstWarnings" Grid.Row="1" BorderThickness="0" Background="Transparent" 
+                    <!-- Status Matrix Grid -->
+                    <Grid Grid.Row="1" Margin="0,0,0,16" HorizontalAlignment="Left">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Headers -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{DynamicResource BodyTextBlockStyle}" FontWeight="Bold" Text="OEM Partner"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Style="{DynamicResource BodyTextBlockStyle}" FontWeight="Bold" Text="NO" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Style="{DynamicResource BodyTextBlockStyle}" FontWeight="Bold" Text="SE" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Style="{DynamicResource BodyTextBlockStyle}" FontWeight="Bold" Text="DK" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="4" Style="{DynamicResource BodyTextBlockStyle}" FontWeight="Bold" Text="FI" HorizontalAlignment="Center"/>
+                        
+                        <!-- Dell -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{DynamicResource BodyTextBlockStyle}" Text="Dell" VerticalAlignment="Center" Margin="0,4"/>
+                        <Ellipse x:Name="Dot_Dell_NO" Grid.Row="1" Grid.Column="1" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_Dell_SE" Grid.Row="1" Grid.Column="2" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_Dell_DK" Grid.Row="1" Grid.Column="3" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_Dell_FI" Grid.Row="1" Grid.Column="4" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        
+                        <!-- HP -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{DynamicResource BodyTextBlockStyle}" Text="HP" VerticalAlignment="Center" Margin="0,4"/>
+                        <Ellipse x:Name="Dot_HP_NO" Grid.Row="2" Grid.Column="1" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_HP_SE" Grid.Row="2" Grid.Column="2" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_HP_DK" Grid.Row="2" Grid.Column="3" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_HP_FI" Grid.Row="2" Grid.Column="4" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        
+                        <!-- Lenovo -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Style="{DynamicResource BodyTextBlockStyle}" Text="Lenovo" VerticalAlignment="Center" Margin="0,4"/>
+                        <Ellipse x:Name="Dot_Lenovo_NO" Grid.Row="3" Grid.Column="1" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_Lenovo_SE" Grid.Row="3" Grid.Column="2" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_Lenovo_DK" Grid.Row="3" Grid.Column="3" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Ellipse x:Name="Dot_Lenovo_FI" Grid.Row="3" Grid.Column="4" Width="14" Height="14" Fill="#FF888888" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Grid>
+                    
+                    <TextBlock Grid.Row="2" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Compliance Warnings &amp; Risks" Margin="0,0,0,12"/>
+                    
+                    <ListView x:Name="LstWarnings" Grid.Row="3" BorderThickness="0" Background="Transparent" 
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
@@ -97,8 +146,12 @@
                                         
                                         <!-- Text -->
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Style="{DynamicResource BodyTextBlockStyle}" FontWeight="SemiBold" Text="{Binding DisplayTitle}"/>
-                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" Text="{Binding DisplayDetails}" TextWrapping="Wrap"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <!-- Colored accent block -->
+                                                <Border Background="{Binding SeverityColor}" Width="4" Height="14" CornerRadius="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Style="{DynamicResource BodyTextBlockStyle}" FontWeight="SemiBold" Text="{Binding DisplayTitle}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" Text="{Binding DisplayDetails}" TextWrapping="Wrap" Margin="10,2,0,0"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

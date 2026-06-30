@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Dapper;
 using PartnerRelationManager.Services;
+using PartnerRelationManager.Models;
 
 namespace PartnerRelationManager
 {
@@ -37,12 +38,69 @@ namespace PartnerRelationManager
                 TxtTotalCountries.Text = totalCountries.ToString();
                 TxtTotalActivities.Text = totalActivities.ToString();
 
+                // Set ToolTips for stat cards
+                var partnerNames = connection.Query<string>("SELECT Name FROM Partners ORDER BY Name;").ToList();
+                CardTotalPartners.ToolTip = partnerNames.Count > 0 ? string.Join(Environment.NewLine, partnerNames) : "No partners";
+
+                var countryCodes = connection.Query<string>("SELECT DISTINCT CountryCode FROM Partners WHERE CountryCode IS NOT NULL AND CountryCode != '' ORDER BY CountryCode;").ToList();
+                CardActiveCountries.ToolTip = countryCodes.Count > 0 ? string.Join(", ", countryCodes) : "No active countries";
+
+                // Update Status Matrix
+                var oems = new[] { "Dell", "HP", "Lenovo" };
+                var countries = new[] { "NO", "SE", "DK", "FI" };
+                var allPartners = connection.Query<Partner>("SELECT Name, Status, CountryCode FROM Partners;").ToList();
+
+                foreach (var oem in oems)
+                {
+                    foreach (var country in countries)
+                    {
+                        var match = allPartners.FirstOrDefault(p => 
+                            p.CountryCode.Equals(country, StringComparison.OrdinalIgnoreCase) && 
+                            p.Name.StartsWith(oem, StringComparison.OrdinalIgnoreCase)
+                        );
+
+                        string dotName = $"Dot_{oem}_{country}";
+                        var ellipse = this.FindName(dotName) as System.Windows.Shapes.Ellipse;
+                        if (ellipse != null)
+                        {
+                            if (match != null)
+                            {
+                                string status = match.Status ?? string.Empty;
+                                if (status.Equals("Green", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    ellipse.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(38, 188, 116)); // #26BC74
+                                    ellipse.ToolTip = $"{match.Name}: Green";
+                                }
+                                else if (status.Equals("Amber", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    ellipse.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(245, 155, 35)); // #F59B23
+                                    ellipse.ToolTip = $"{match.Name}: Amber";
+                                }
+                                else if (status.Equals("Red", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    ellipse.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 17, 35)); // #E81123
+                                    ellipse.ToolTip = $"{match.Name}: Red";
+                                }
+                                else
+                                {
+                                    ellipse.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Gray);
+                                    ellipse.ToolTip = $"{match.Name}: No Status";
+                                }
+                            }
+                            else
+                            {
+                                ellipse.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 220, 220)); // Light Gray
+                                ellipse.ToolTip = $"{oem} ({country}): Not Managed";
+                            }
+                        }
+                    }
+                }
+
                 // 2. Generate Compliance Warnings
                 var warnings = new List<DashboardWarning>();
 
                 // Partner status warnings
-                var partnerList = connection.Query("SELECT Name, Status, CountryCode FROM Partners;").ToList();
-                foreach (var p in partnerList)
+                foreach (var p in allPartners)
                 {
                     string status = p.Status ?? string.Empty;
                     if (status.Equals("Red", StringComparison.OrdinalIgnoreCase) || 
@@ -51,7 +109,8 @@ namespace PartnerRelationManager
                         warnings.Add(new DashboardWarning
                         {
                             DisplayTitle = $"Status Alert - {p.Name} ({p.CountryCode})",
-                            DisplayDetails = $"Partner status is currently set to {status}."
+                            DisplayDetails = $"Partner status is currently set to {status}.",
+                            SeverityColor = status.Equals("Red", StringComparison.OrdinalIgnoreCase) ? "#FFE81123" : "#FFF59B23"
                         });
                     }
                 }
@@ -70,7 +129,8 @@ namespace PartnerRelationManager
                         warnings.Add(new DashboardWarning
                         {
                             DisplayTitle = $"Downgrade Risk - {item.PartnerName} ({item.CountryCode})",
-                            DisplayDetails = "Program control assessment reports high risk of downgrade."
+                            DisplayDetails = "Program control assessment reports high risk of downgrade.",
+                            SeverityColor = "#FFE81123" // Red
                         });
                     }
                     double? varVal = item.Variance;
@@ -79,7 +139,8 @@ namespace PartnerRelationManager
                         warnings.Add(new DashboardWarning
                         {
                             DisplayTitle = $"Revenue Variance Warning - {item.PartnerName} ({item.CountryCode})",
-                            DisplayDetails = $"Reported revenue variance between Onitio and OEM is {(varVal.Value * 100):N1}%."
+                            DisplayDetails = $"Reported revenue variance between Onitio and OEM is {(varVal.Value * 100):N1}%.",
+                            SeverityColor = Math.Abs(varVal.Value) > 0.20 ? "#FFE81123" : "#FFF59B23" // Red or Amber
                         });
                     }
                 }
@@ -88,12 +149,14 @@ namespace PartnerRelationManager
                 LstWarnings.ItemsSource = warnings;
 
                 // 3. Load Activities
+                string localCountry = DatabaseHelper.GetSetting("LocalCountry", "NO");
                 var activities = connection.Query(@"
                     SELECT a.*, p.Name as PartnerName 
                     FROM Activities a
                     JOIN Partners p ON a.PartnerId = p.Id
+                    WHERE p.CountryCode = @LocalCountry
                     ORDER BY a.ActivityDate DESC
-                    LIMIT 8"
+                    LIMIT 8", new { LocalCountry = localCountry }
                 ).Select(row => new ActivityDashboardViewModel
                 {
                     Title = row.Title,
@@ -124,6 +187,7 @@ namespace PartnerRelationManager
         {
             public string DisplayTitle { get; set; } = string.Empty;
             public string DisplayDetails { get; set; } = string.Empty;
+            public string SeverityColor { get; set; } = "#FFE81123";
         }
 
         public class ActivityDashboardViewModel

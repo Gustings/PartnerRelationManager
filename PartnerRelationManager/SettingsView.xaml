@@ -12,6 +12,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Page Header -->
@@ -21,8 +22,35 @@
                               Text="Import/export your data and perform database maintenance." />
             </StackPanel>
 
-            <!-- Excel Operations -->
+            <!-- App Configuration -->
             <ui:Card Grid.Row="1" Margin="0,0,0,16" Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Application Configuration" />
+                        <TextBlock Style="{DynamicResource BodyTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
+                                      Text="Configure the local country scope for filtering activities and warnings." 
+                                      TextWrapping="Wrap"/>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Local Country:" VerticalAlignment="Center" Margin="0,0,8,0" Style="{DynamicResource BodyTextBlockStyle}"/>
+                        <ComboBox x:Name="CboLocalCountry" Width="100" SelectionChanged="CboLocalCountry_SelectionChanged">
+                            <ComboBoxItem Content="NO"/>
+                            <ComboBoxItem Content="SE"/>
+                            <ComboBoxItem Content="DK"/>
+                            <ComboBoxItem Content="FI"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+            </ui:Card>
+
+            <!-- Excel Operations -->
+            <ui:Card Grid.Row="2" Margin="0,0,0,16" Padding="16">
                 <StackPanel >
                     <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Excel Integration" />
                     <TextBlock Style="{DynamicResource BodyTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"
@@ -37,7 +65,7 @@
             </ui:Card>
 
             <!-- Database Administration -->
-            <ui:Card Grid.Row="2" Padding="16" Background="#FFFDF0F0" BorderBrush="#FFF0C4C4">
+            <ui:Card Grid.Row="3" Padding="16" Background="#FFFDF0F0" BorderBrush="#FFF0C4C4">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>

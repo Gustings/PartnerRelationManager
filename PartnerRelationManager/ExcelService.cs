@@ -322,18 +322,12 @@ namespace PartnerRelationManager.Services
                     string title = $"QBR - {qbrType}";
                     string description = $"Key Topics:\n{keyTopics}\n\nOpen Risks:\n{openRisks}\n\nActions Agreed:\n{actions}\n\nEscalation Level: {escalation}";
 
-                    // Find all country-specific partner instances in db for partnerName
-                    var targets = connection.Query<Partner>(
-                        "SELECT * FROM Partners WHERE Name LIKE @Pattern",
-                        new { Pattern = partnerName + "%" })
-                        .Where(p => p.Name.Equals($"{partnerName} Norway", StringComparison.OrdinalIgnoreCase) ||
-                                    p.Name.Equals($"{partnerName} Sweden", StringComparison.OrdinalIgnoreCase) ||
-                                    p.Name.Equals($"{partnerName} Denmark", StringComparison.OrdinalIgnoreCase) ||
-                                    p.Name.Equals($"{partnerName} Finland", StringComparison.OrdinalIgnoreCase) ||
-                                    p.Name.Equals(partnerName, StringComparison.OrdinalIgnoreCase))
-                        .ToList();
+                    // Only import QBR logs for the Norway-specific version of the partner (e.g., 'HP Norway')
+                    string targetName = $"{partnerName} Norway";
+                    var targetPartner = connection.QueryFirstOrDefault<Partner>(
+                        "SELECT * FROM Partners WHERE Name = @Name", new { Name = targetName });
 
-                    foreach (var targetPartner in targets)
+                    if (targetPartner != null)
                     {
                         var existingActivity = connection.QueryFirstOrDefault<Activity>(
                             "SELECT * FROM Activities WHERE PartnerId = @PartnerId AND Title = @Title AND ActivityDate = @ActivityDate",
