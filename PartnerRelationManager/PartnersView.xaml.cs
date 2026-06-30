@@ -355,42 +355,112 @@ namespace PartnerRelationManager
         // ==========================================
         private void BtnAddPartner_Click(object sender, RoutedEventArgs e)
         {
-            string name = TxtNewPartnerName.Text.Trim();
-            if (string.IsNullOrWhiteSpace(name)) return;
+            var addWindow = new AddPartnerWindow();
+            addWindow.Owner = Window.GetWindow(this);
+            if (addWindow.ShowDialog() == true)
+            {
+                LoadPartners();
+                
+                // Refresh dashboard/main UI
+                var mainWin = Window.GetWindow(this) as MainWindow;
+                mainWin?.RefreshAll();
+            }
+        }
+
+        private void MenuItemDeleteSelected_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedItem = TreePartners.SelectedItem as PartnerTreeItem;
+            if (selectedItem == null)
+            {
+                MessageBox.Show("Please select a partner or partner group to delete.", "Delete", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            bool isParent = selectedItem.PartnerRef == null;
+            string entityName = selectedItem.DisplayText;
+
+            MessageBoxResult confirmResult;
+            List<int> partnerIdsToDelete = new List<int>();
+
+            if (isParent)
+            {
+                partnerIdsToDelete = selectedItem.Children
+                    .Where(c => c.PartnerRef != null)
+                    .Select(c => c.PartnerRef!.Id)
+                    .ToList();
+
+                if (partnerIdsToDelete.Count == 0)
+                {
+                    confirmResult = MessageBox.Show($"Are you sure you want to delete the empty partner group '{entityName}'?", "Confirm Deletion", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                }
+                else
+                {
+                    confirmResult = MessageBox.Show($"Are you sure you want to delete the partner group '{entityName}' and all its {partnerIdsToDelete.Count} country accounts, including all associated contacts, activities, documents, and KPIs?", "Confirm Deletion", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                }
+            }
+            else
+            {
+                var partner = selectedItem.PartnerRef!;
+                partnerIdsToDelete.Add(partner.Id);
+                confirmResult = MessageBox.Show($"Are you sure you want to delete the partner '{partner.Name}' and all associated contacts, activities, documents, and KPIs?", "Confirm Deletion", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            }
+
+            if (confirmResult != MessageBoxResult.Yes)
+            {
+                return;
+            }
 
             try
             {
                 using var connection = DatabaseHelper.GetConnection();
                 connection.Open();
-
-                var existing = connection.QueryFirstOrDefault<Partner>(
-                    "SELECT * FROM Partners WHERE Name = @Name", new { Name = name });
-                if (existing != null)
+                using var transaction = connection.BeginTransaction();
+                try
                 {
-                    MessageBox.Show($"A partner with the name '{name}' already exists.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
+                    if (partnerIdsToDelete.Count > 0)
+                    {
+                        // Delete from KPI_ProgramControl
+                        connection.Execute("DELETE FROM KPI_ProgramControl WHERE PartnerId IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
+
+                        // Delete from KPI_Commercial
+                        connection.Execute("DELETE FROM KPI_Commercial WHERE PartnerId IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
+
+                        // Delete from Documents
+                        connection.Execute("DELETE FROM Documents WHERE PartnerId IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
+
+                        // Delete from Activities
+                        connection.Execute("DELETE FROM Activities WHERE PartnerId IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
+
+                        // Delete from Contacts
+                        connection.Execute("DELETE FROM Contacts WHERE PartnerId IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
+
+                        // Delete from Partners
+                        connection.Execute("DELETE FROM Partners WHERE Id IN @Ids", new { Ids = partnerIdsToDelete }, transaction);
+                    }
+
+                    transaction.Commit();
+
+                    MessageBox.Show("Selected partner data deleted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    // Clear selections/views
+                    CardNoSelection.Visibility = Visibility.Visible;
+                    GridPartnerDetails.Visibility = Visibility.Collapsed;
+
+                    LoadPartners();
+
+                    // Refresh dashboard/main UI
+                    var mainWin = Window.GetWindow(this) as MainWindow;
+                    mainWin?.RefreshAll();
                 }
-
-                int id = connection.QuerySingle<int>(@"
-                    INSERT INTO Partners (Name, InternalOwner, Category, StrategicImportance, Status, BusinessAreas, CountryCode)
-                    VALUES (@Name, 'August Eriksen', 'Preferred', 'Medium', 'Green', 'Hardware', 'NO');
-                    SELECT last_insert_rowid();",
-                    new { Name = name });
-
-                TxtNewPartnerName.Clear();
-                LoadPartners();
-                
-                // Select new partner in tree
-                var targetItem = FindTreeItem(TreePartners.ItemsSource as IEnumerable<PartnerTreeItem>, id);
-                if (targetItem != null)
+                catch (Exception ex)
                 {
-                    targetItem.IsSelected = true;
-                    ExpandParent(TreePartners.ItemsSource as IEnumerable<PartnerTreeItem>, targetItem);
+                    transaction.Rollback();
+                    MessageBox.Show($"Error during deletion: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error adding partner: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Database connection error: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

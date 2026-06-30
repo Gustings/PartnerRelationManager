@@ -29,6 +29,11 @@
 
                 <TreeView Grid.Row="2" x:Name="TreePartners" SelectedItemChanged="TreePartners_SelectedItemChanged" 
                           BorderThickness="0" Background="Transparent">
+                    <TreeView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Delete Selected" Click="MenuItemDeleteSelected_Click"/>
+                        </ContextMenu>
+                    </TreeView.ContextMenu>
                     <TreeView.ItemContainerStyle>
                         <Style TargetType="{x:Type TreeViewItem}">
                             <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
@@ -51,7 +56,6 @@
 
                 <!-- Add Partner Action -->
                 <StackPanel Grid.Row="3" Margin="0,12,0,0" >
-                    <ui:TextBox x:Name="TxtNewPartnerName" PlaceholderText="New Partner Name"/>
                     <ui:Button Content="Add New Partner" Icon="Add24" Appearance="Secondary" 
                                Click="BtnAddPartner_Click" HorizontalAlignment="Stretch"/>
                 </StackPanel>

@@ -129,7 +129,12 @@
                     <TextBlock Grid.Row="2" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Compliance Warnings &amp; Risks" Margin="0,0,0,12"/>
                     
                     <ListView x:Name="LstWarnings" Grid.Row="3" BorderThickness="0" Background="Transparent" 
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border BorderBrush="#FFE5E5E5" BorderThickness="0,0,0,1" Padding="8,10,8,10">
@@ -145,14 +150,18 @@
                                         </Border>
                                         
                                         <!-- Text -->
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal">
+                                        <Grid Grid.Column="1" VerticalAlignment="Center">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <StackPanel Grid.Row="0" Orientation="Horizontal">
                                                 <!-- Colored accent block -->
                                                 <Border Background="{Binding SeverityColor}" Width="4" Height="14" CornerRadius="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                                 <TextBlock Style="{DynamicResource BodyTextBlockStyle}" FontWeight="SemiBold" Text="{Binding DisplayTitle}" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" Text="{Binding DisplayDetails}" TextWrapping="Wrap" Margin="10,2,0,0"/>
-                                        </StackPanel>
+                                            <TextBlock Grid.Row="1" Style="{DynamicResource CaptionTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" Text="{Binding DisplayDetails}" TextWrapping="Wrap" Margin="10,2,0,0"/>
+                                        </Grid>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -172,6 +181,11 @@
                     <TextBlock Grid.Row="0" Style="{DynamicResource SubtitleTextBlockStyle}" Text="Upcoming / Recent Activities" Margin="0,0,0,12"/>
                     
                     <ListView x:Name="LstActivities" Grid.Row="1" BorderThickness="0" Background="Transparent">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border BorderBrush="#FFE5E5E5" BorderThickness="0,0,0,1" Padding="4,8,4,8">

@@ -1,0 +1,45 @@
+<Window x:Class="PartnerRelationManager.AddPartnerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Add New Partner"
+        Height="320" Width="420"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{ui:ThemeResource ApplicationBackgroundBrush}">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Style="{DynamicResource SubtitleTextBlockStyle}" Text="Add New Partner" FontWeight="SemiBold"/>
+            <TextBlock Style="{DynamicResource CaptionTextBlockStyle}" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}" 
+                       Text="Enter the OEM name and select the countries to manage." />
+        </StackPanel>
+
+        <!-- Content -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Top">
+            <TextBlock Style="{DynamicResource BodyTextBlockStyle}" Text="OEM Partner Name:" Margin="0,0,0,6"/>
+            <ui:TextBox x:Name="TxtOemName" PlaceholderText="e.g. HP, Lenovo, Dell, Cisco" Margin="0,0,0,16"/>
+
+            <TextBlock Style="{DynamicResource BodyTextBlockStyle}" Text="Target Countries:" Margin="0,0,0,6"/>
+            <WrapPanel Margin="0,0,0,16">
+                <CheckBox x:Name="ChkNo" Content="Norway (NO)" IsChecked="True" Margin="0,0,16,8"/>
+                <CheckBox x:Name="ChkSe" Content="Sweden (SE)" IsChecked="True" Margin="0,0,16,8"/>
+                <CheckBox x:Name="ChkDk" Content="Denmark (DK)" IsChecked="True" Margin="0,0,16,8"/>
+                <CheckBox x:Name="ChkFi" Content="Finland (FI)" IsChecked="True" Margin="0,0,16,8"/>
+            </WrapPanel>
+        </StackPanel>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <ui:Button x:Name="BtnCancel" Content="Cancel" Click="BtnCancel_Click" Margin="0,0,8,0" Appearance="Secondary" Width="100"/>
+            <ui:Button x:Name="BtnCreate" Content="Create" Click="BtnCreate_Click" Appearance="Primary" Width="100"/>
+        </StackPanel>
+    </Grid>
+</Window>
