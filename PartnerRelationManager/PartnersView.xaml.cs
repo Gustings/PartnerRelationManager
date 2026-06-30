@@ -46,6 +46,8 @@ namespace PartnerRelationManager
                 using var connection = DatabaseHelper.GetConnection();
                 connection.Open();
                 allTiers = connection.Query<Tier>("SELECT * FROM Tiers ORDER BY Id;").ToList();
+                
+                CboPartnerTier.SelectedIndex = -1; // Clear selection first to prevent WPF internal cast issues
                 CboPartnerTier.ItemsSource = allTiers;
             }
             catch (Exception ex)
@@ -62,14 +64,23 @@ namespace PartnerRelationManager
                 connection.Open();
                 allCountries = connection.Query<Country>("SELECT * FROM Countries ORDER BY Code;").ToList();
                 
+                // Detach selection event to avoid firing on intermediate changes and clear selection
+                CboCountry.SelectionChanged -= CboFilter_SelectionChanged;
+                
                 var previousSelection = CboCountry.SelectedValue;
+                CboCountry.SelectedIndex = -1; // Clear selection first to prevent WPF internal cast issues
                 CboCountry.ItemsSource = allCountries;
                 
                 if (allCountries.Count > 0)
                 {
-                    if (previousSelection != null && allCountries.Any(c => c.Id == (int)previousSelection))
+                    int? prevId = null;
+                    if (previousSelection is int idInt) prevId = idInt;
+                    else if (previousSelection is long idLong) prevId = (int)idLong;
+                    else if (previousSelection is Country countryObj) prevId = countryObj.Id;
+
+                    if (prevId != null && allCountries.Any(c => c.Id == prevId.Value))
                     {
-                        CboCountry.SelectedValue = previousSelection;
+                        CboCountry.SelectedValue = prevId.Value;
                     }
                     else
                     {
@@ -80,6 +91,10 @@ namespace PartnerRelationManager
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading countries: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                CboCountry.SelectionChanged += CboFilter_SelectionChanged;
             }
         }
 
